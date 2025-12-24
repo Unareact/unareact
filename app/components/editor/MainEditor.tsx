@@ -1,0 +1,129 @@
+'use client';
+
+import { useEditorStore } from '@/app/stores/editor-store';
+import { ScriptGenerator } from '../script/ScriptGenerator';
+import { ScriptEditor } from '../script/ScriptEditor';
+import { VideoPlayer } from '../player/VideoPlayer';
+import { Timeline } from '../timeline/Timeline';
+import { FileText, Video, Scissors, TrendingUp, Download } from 'lucide-react';
+import { cn } from '@/app/lib/utils';
+import { ViralVideoList } from '../viral/ViralVideoList';
+import { YouTubeDownloader } from '../youtube/YouTubeDownloader';
+
+export function MainEditor() {
+  const { activePanel, setActivePanel } = useEditorStore();
+
+  const panels = [
+    { id: 'script' as const, label: 'Roteiro', icon: FileText },
+    { id: 'viral' as const, label: 'Virais', icon: TrendingUp },
+    { id: 'editor' as const, label: 'Editor', icon: Scissors },
+    { id: 'preview' as const, label: 'Preview', icon: Video },
+    { id: 'download' as const, label: 'Download', icon: Download },
+  ];
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            UNA - Editor de Vídeo & Roteiros
+          </h1>
+          <div className="flex gap-2">
+            {panels.map((panel) => {
+              const Icon = panel.icon;
+              return (
+                <button
+                  key={panel.id}
+                  onClick={() => setActivePanel(panel.id)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all",
+                    activePanel === panel.id
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  {panel.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden grid grid-cols-12 gap-4 p-4">
+        {/* Left Panel - Roteiro */}
+        {activePanel === 'script' && (
+          <div className="col-span-12 lg:col-span-6 overflow-y-auto space-y-4">
+            <ScriptGenerator />
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Roteiro Gerado
+              </h2>
+              <ScriptEditor />
+            </div>
+          </div>
+        )}
+
+        {/* Painel Download */}
+        {activePanel === 'download' ? (
+          <div className="col-span-12 overflow-y-auto">
+            <YouTubeDownloader />
+          </div>
+        ) : activePanel === 'viral' ? (
+          <div className="col-span-12 overflow-y-auto">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-2 mb-6">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  Vídeos Virais Globais
+                </h2>
+              </div>
+              <ViralVideoList />
+            </div>
+          </div>
+        ) : (
+          /* Center - Preview/Editor */
+          <div className={cn(
+            "overflow-y-auto",
+            activePanel === 'script' ? "col-span-12 lg:col-span-6" : "col-span-12 lg:col-span-8"
+          )}>
+            <div className="space-y-4">
+              <VideoPlayer />
+              {activePanel === 'editor' && (
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    Timeline de Edição
+                  </h2>
+                  <Timeline />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Right Panel - Preview Info */}
+        {activePanel === 'preview' && (
+          <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Informações do Projeto
+            </h2>
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-gray-500 dark:text-gray-400">Status</p>
+                <p className="text-gray-900 dark:text-gray-100 font-medium">Em edição</p>
+              </div>
+              <div>
+                <p className="text-gray-500 dark:text-gray-400">Duração Total</p>
+                <p className="text-gray-900 dark:text-gray-100 font-medium">0:00</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
