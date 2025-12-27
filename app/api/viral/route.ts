@@ -240,8 +240,10 @@ async function getYouTubeVideosData(
           allVideos.push(...trendingResponse.data.items);
         } else {
           console.warn(`⚠️ Região ${regionCode}: Nenhum vídeo retornado (items: ${trendingResponse.data.items?.length || 0})`);
-          if (trendingResponse.data.error) {
-            console.error('❌ Erro na resposta:', trendingResponse.data.error);
+          // Verificar se há erro na resposta (pode estar em diferentes propriedades)
+          const responseData = trendingResponse.data as any;
+          if (responseData.error) {
+            console.error('❌ Erro na resposta:', responseData.error);
           }
         }
       } catch (error: any) {
