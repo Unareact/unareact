@@ -68,8 +68,14 @@ export function ViralVideoList() {
         console.warn('⚠️ Nenhum vídeo retornado da API', { 
           platform: data.platform, 
           total: data.total,
-          filtersApplied: data.filtersApplied 
+          filtersApplied: data.filtersApplied,
+          error: data.error
         });
+        
+        // Se houver erro, mostrar no console
+        if (data.error) {
+          console.error('❌ Erro da API:', data.error);
+        }
       }
       
       setVideos(data.videos || []);
