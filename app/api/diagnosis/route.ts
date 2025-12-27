@@ -229,7 +229,16 @@ Siga os 4 passos da metodologia acima e forneça o JSON completo com TODOS os ca
       messages: [
         {
           role: 'system',
-          content: 'Você é um especialista em análise de vídeos virais e criação de conteúdo. Forneça análises detalhadas e acionáveis em formato JSON.',
+          content: `Você é um ANALISTA ESPECIALISTA em vídeos virais com expertise em:
+- Análise de métricas de engajamento (YouTube, TikTok, Instagram)
+- Identificação de padrões de viralização baseados em dados
+- Criação de insights acionáveis e replicáveis
+- Análise de estrutura narrativa e técnicas de storytelling
+- Recomendações práticas de edição e produção
+
+Sua missão é fornecer análises PROFUNDAS, ESPECÍFICAS e BASEADAS EM DADOS. 
+NUNCA use respostas genéricas. Sempre cite dados concretos e forneça exemplos específicos.
+Sempre retorne JSON válido e completo com todos os campos solicitados.`,
         },
         {
           role: 'user',
@@ -237,7 +246,8 @@ Siga os 4 passos da metodologia acima e forneça o JSON completo com TODOS os ca
         },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: 0.5, // Reduzido para mais consistência e precisão
+      max_tokens: 4000, // Aumentado para análises mais completas
     });
 
     const aiAnalysis = JSON.parse(completion.choices[0]?.message?.content || '{}');
