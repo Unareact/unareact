@@ -1,30 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { generateScript } from '@/app/lib/openai';
 import { ScriptGenerationParams } from '@/app/types';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, TrendingUp, Info } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 export function ScriptGenerator() {
-  const { setIsGeneratingScript, setScript, isGeneratingScript } = useEditorStore();
+  const { setIsGeneratingScript, setScript, isGeneratingScript, currentViralDiagnosis } = useEditorStore();
   const [topic, setTopic] = useState('');
   const [duration, setDuration] = useState(60);
   const [style, setStyle] = useState<ScriptGenerationParams['style']>('educational');
   const [tone, setTone] = useState<ScriptGenerationParams['tone']>('casual');
+  const [useViralInsights, setUseViralInsights] = useState(false);
+
+  // Ativar uso de insights virais se houver diagnóstico disponível
+  useEffect(() => {
+    if (currentViralDiagnosis && !useViralInsights) {
+      setUseViralInsights(true);
+    }
+  }, [currentViralDiagnosis]);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
 
     setIsGeneratingScript(true);
     try {
-      const segments = await generateScript({
+      const params: ScriptGenerationParams = {
         topic,
         duration,
         style,
         tone,
-      });
+      };
+
+      // Se houver diagnóstico viral e o usuário quiser usar, adicionar insights
+      if (useViralInsights && currentViralDiagnosis) {
+        params.viralInsights = {
+          viralFactors: currentViralDiagnosis.viralFactors,
+          insights: currentViralDiagnosis.insights,
+          editingRecommendations: currentViralDiagnosis.editingRecommendations,
+        };
+      }
+
+      const segments = await generateScript(params);
       setScript(segments);
     } catch (error) {
       console.error('Erro ao gerar roteiro:', error);
@@ -44,6 +63,36 @@ export function ScriptGenerator() {
       </div>
 
       <div className="space-y-4">
+        {/* Aviso sobre insights virais disponíveis */}
+        {currentViralDiagnosis && (
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                  🎯 Insights Virais Disponíveis
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                  Você tem um diagnóstico viral de "{currentViralDiagnosis.videoTitle}". 
+                  Use esses insights para gerar um roteiro otimizado!
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useViralInsights}
+                    onChange={(e) => setUseViralInsights(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                    disabled={isGeneratingScript}
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Usar insights virais para otimizar o roteiro
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Tópico do Vídeo
@@ -114,7 +163,9 @@ export function ScriptGenerator() {
           disabled={isGeneratingScript || !topic.trim()}
           className={cn(
             "w-full py-3 px-6 rounded-lg font-medium text-white transition-all",
-            "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700",
+            useViralInsights && currentViralDiagnosis
+              ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             "flex items-center justify-center gap-2"
           )}
@@ -127,10 +178,22 @@ export function ScriptGenerator() {
           ) : (
             <>
               <Sparkles className="w-5 h-5" />
-              Gerar Roteiro com IA
+              {useViralInsights && currentViralDiagnosis 
+                ? 'Gerar Roteiro Otimizado com IA' 
+                : 'Gerar Roteiro com IA'}
             </>
           )}
         </button>
+        
+        {useViralInsights && currentViralDiagnosis && (
+          <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 bg-purple-50 dark:bg-purple-950/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <p>
+              O roteiro será otimizado usando os padrões identificados no vídeo viral: 
+              <strong className="text-purple-700 dark:text-purple-300"> {currentViralDiagnosis.videoTitle}</strong>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

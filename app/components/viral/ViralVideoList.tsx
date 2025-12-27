@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
-import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown } from 'lucide-react';
+import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone } from 'lucide-react';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
@@ -12,22 +12,39 @@ import { PlatformStatus } from './PlatformStatus';
 export function ViralVideoList() {
   const [videos, setVideos] = useState<ViralVideo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>('all'); // Plataforma: YouTube, TikTok ou Todas
   const [region, setRegion] = useState('ALL_AMERICAS');
   const [minLikes, setMinLikes] = useState(100000); // 100K por padrão
   const [maxDaysAgo, setMaxDaysAgo] = useState(0);
   const [minLikesPerDay, setMinLikesPerDay] = useState(0);
-  const [category, setCategory] = useState('0'); // Categoria/nicho
+  const [category, setCategory] = useState('0'); // Categoria/nicho (apenas YouTube)
   const [sortBy, setSortBy] = useState('views'); // Ordenação - padrão: mais views primeiro
   const [error, setError] = useState<string | null>(null);
   const [diagnosingVideo, setDiagnosingVideo] = useState<{ id: string; title: string } | null>(null);
   const [stats, setStats] = useState<{ total: number; filtered: boolean; regions: string } | null>(null);
-  const { addClip } = useEditorStore();
+  const { addClip, setActivePanel } = useEditorStore();
 
   const fetchViralVideos = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const url = `/api/viral?region=${region}&maxResults=100&minLikes=${minLikes}&maxDaysAgo=${maxDaysAgo}&minLikesPerDay=${minLikesPerDay}&category=${category}&sortBy=${sortBy}`;
+      // Construir URL com parâmetros baseados na plataforma
+      const params = new URLSearchParams({
+        platform: platform,
+        maxResults: '100',
+        minLikes: minLikes.toString(),
+        maxDaysAgo: maxDaysAgo.toString(),
+        minLikesPerDay: minLikesPerDay.toString(),
+        sortBy: sortBy,
+      });
+      
+      // Região e categoria apenas para YouTube
+      if (platform === 'youtube' || platform === 'all') {
+        params.append('region', region);
+        params.append('category', category);
+      }
+      
+      const url = `/api/viral?${params.toString()}`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Erro ao buscar vídeos virais');
@@ -59,7 +76,7 @@ export function ViralVideoList() {
     } finally {
       setLoading(false);
     }
-  }, [region, minLikes, maxDaysAgo, minLikesPerDay, category, sortBy]);
+  }, [platform, region, minLikes, maxDaysAgo, minLikesPerDay, category, sortBy]);
 
   useEffect(() => {
     fetchViralVideos();
@@ -165,85 +182,106 @@ export function ViralVideoList() {
           </h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Região */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Plataforma */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Globe className="w-4 h-4" />
-              Região
+              <Smartphone className="w-4 h-4" />
+              Plataforma
             </label>
             <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value as 'youtube' | 'tiktok' | 'all')}
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
             >
-              <option value="ALL_AMERICAS">🌎 Toda América</option>
-              <optgroup label="América do Norte">
-                <option value="US">Estados Unidos</option>
-                <option value="CA">Canadá</option>
-                <option value="MX">México</option>
-              </optgroup>
-              <optgroup label="América Central">
-                <option value="GT">Guatemala</option>
-                <option value="CU">Cuba</option>
-                <option value="HT">Haiti</option>
-                <option value="DO">República Dominicana</option>
-                <option value="HN">Honduras</option>
-                <option value="NI">Nicarágua</option>
-                <option value="CR">Costa Rica</option>
-                <option value="PA">Panamá</option>
-              </optgroup>
-              <optgroup label="América do Sul">
-                <option value="BR">Brasil</option>
-                <option value="AR">Argentina</option>
-                <option value="CO">Colômbia</option>
-                <option value="CL">Chile</option>
-                <option value="PE">Peru</option>
-                <option value="VE">Venezuela</option>
-                <option value="EC">Equador</option>
-                <option value="BO">Bolívia</option>
-                <option value="PY">Paraguai</option>
-                <option value="UY">Uruguai</option>
-              </optgroup>
+              <option value="all">📱 Todas</option>
+              <option value="youtube">▶️ YouTube</option>
+              <option value="tiktok">🎵 TikTok</option>
             </select>
           </div>
           
-          {/* Categoria/Nicho */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Filter className="w-4 h-4" />
-              Nicho/Categoria
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-            >
-              {YOUTUBE_CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.emoji} {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Região - Apenas para YouTube */}
+          {(platform === 'youtube' || platform === 'all') && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <Globe className="w-4 h-4" />
+                Região
+              </label>
+              <select
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+              >
+                <option value="ALL_AMERICAS">🌎 Toda América</option>
+                <optgroup label="América do Norte">
+                  <option value="US">Estados Unidos</option>
+                  <option value="CA">Canadá</option>
+                  <option value="MX">México</option>
+                </optgroup>
+                <optgroup label="América Central">
+                  <option value="GT">Guatemala</option>
+                  <option value="CU">Cuba</option>
+                  <option value="HT">Haiti</option>
+                  <option value="DO">República Dominicana</option>
+                  <option value="HN">Honduras</option>
+                  <option value="NI">Nicarágua</option>
+                  <option value="CR">Costa Rica</option>
+                  <option value="PA">Panamá</option>
+                </optgroup>
+                <optgroup label="América do Sul">
+                  <option value="BR">Brasil</option>
+                  <option value="AR">Argentina</option>
+                  <option value="CO">Colômbia</option>
+                  <option value="CL">Chile</option>
+                  <option value="PE">Peru</option>
+                  <option value="VE">Venezuela</option>
+                  <option value="EC">Equador</option>
+                  <option value="BO">Bolívia</option>
+                  <option value="PY">Paraguai</option>
+                  <option value="UY">Uruguai</option>
+                </optgroup>
+              </select>
+            </div>
+          )}
+          
+          {/* Categoria/Nicho - Apenas para YouTube */}
+          {(platform === 'youtube' || platform === 'all') && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <Filter className="w-4 h-4" />
+                Nicho/Categoria
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+              >
+                {YOUTUBE_CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.emoji} {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           
           {/* Ordenação - Como os vídeos vão aparecer */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
               <ArrowUpDown className="w-4 h-4" />
-              Ordenar por (Ordem de Aparecimento)
+              Ordenar por
             </label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
             >
-              <option value="views">👁️ Mais Visualizações (Primeiro)</option>
-              <option value="likes">❤️ Mais Curtidas (Primeiro)</option>
-              <option value="comments">💬 Mais Comentários (Primeiro)</option>
-              <option value="growth">📈 Maior Crescimento (Primeiro)</option>
-              <option value="viralScore">🔥 Viral Score (Recomendado)</option>
-              <option value="recent">🕐 Mais Recente (Primeiro)</option>
+              <option value="views">👁️ Mais Visualizações</option>
+              <option value="likes">❤️ Mais Curtidas</option>
+              <option value="comments">💬 Mais Comentários</option>
+              <option value="growth">📈 Maior Crescimento</option>
+              <option value="viralScore">🔥 Viral Score</option>
+              <option value="recent">🕐 Mais Recente</option>
             </select>
           </div>
         </div>
@@ -359,6 +397,13 @@ export function ViralVideoList() {
                 </div>
               )}
               <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded text-xs">
+                Plataforma: {
+                  platform === 'all' ? '📱 Todas' :
+                  platform === 'tiktok' ? '🎵 TikTok' :
+                  '▶️ YouTube'
+                }
+              </span>
+              <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded text-xs">
                 Ordenado por: {
                   sortBy === 'views' ? '👁️ Mais Views' :
                   sortBy === 'likes' ? '❤️ Mais Curtidas' :
@@ -368,9 +413,11 @@ export function ViralVideoList() {
                   '🔥 Viral Score'
                 }
               </span>
-              <span className="text-xs">
-                Região: {stats.regions}
-              </span>
+              {(platform === 'youtube' || platform === 'all') && (
+                <span className="text-xs">
+                  Região: {stats.regions}
+                </span>
+              )}
             </div>
             {stats.total === 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
@@ -403,9 +450,15 @@ export function ViralVideoList() {
                 alt={video.title}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-2 left-2">
+              <div className="absolute top-2 left-2 flex gap-2">
                 <span className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded">
                   #{video.trendingRank}
+                </span>
+                <span className={cn(
+                  "px-2 py-1 text-white text-xs font-medium rounded",
+                  video.platform === 'tiktok' ? 'bg-pink-600' : 'bg-red-600'
+                )}>
+                  {video.platform === 'tiktok' ? '🎵 TikTok' : '▶️ YouTube'}
                 </span>
               </div>
               <div className="absolute top-2 right-2">
@@ -478,13 +531,29 @@ export function ViralVideoList() {
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>
-                <button
-                  onClick={() => setDiagnosingVideo({ id: video.id, title: video.title })}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 text-sm font-medium transition-colors"
-                >
-                  <Brain className="w-4 h-4" />
-                  Diagnosticar Viralização
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setDiagnosingVideo({ id: video.id, title: video.title });
+                      setActivePanel('viral'); // Garantir que está no painel viral
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 text-sm font-medium transition-colors"
+                  >
+                    <Brain className="w-4 h-4" />
+                    Diagnosticar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDiagnosingVideo({ id: video.id, title: video.title });
+                      setActivePanel('script'); // Ir direto para o painel de roteiros após diagnóstico
+                    }}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 text-sm font-medium transition-colors"
+                    title="Diagnosticar e gerar roteiro otimizado"
+                  >
+                    <Brain className="w-4 h-4" />
+                    <span className="hidden sm:inline">Roteiro</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

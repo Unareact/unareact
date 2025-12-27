@@ -15,10 +15,12 @@ import {
   Sparkles,
   Clock,
   Heart,
-  MessageCircle
+  MessageCircle,
+  Wand2
 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
+import { generateScriptFromViralDiagnosis } from '@/app/lib/openai';
 
 interface ViralDiagnosisProps {
   videoId: string;
@@ -30,7 +32,8 @@ export function ViralDiagnosis({ videoId, videoTitle, onClose }: ViralDiagnosisP
   const [diagnosis, setDiagnosis] = useState<ViralDiagnosis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setScript, setActivePanel } = useEditorStore();
+  const [generatingScript, setGeneratingScript] = useState(false);
+  const { setScript, setActivePanel, setCurrentViralDiagnosis } = useEditorStore();
 
   const generateDiagnosis = async () => {
     setLoading(true);
@@ -48,6 +51,8 @@ export function ViralDiagnosis({ videoId, videoTitle, onClose }: ViralDiagnosisP
 
       const data = await response.json();
       setDiagnosis(data.diagnosis);
+      // Armazenar diagnóstico no store para uso no gerador de roteiros
+      setCurrentViralDiagnosis(data.diagnosis);
     } catch (err: any) {
       setError(err.message || 'Erro ao gerar diagnóstico');
     } finally {
@@ -72,6 +77,40 @@ export function ViralDiagnosis({ videoId, videoTitle, onClose }: ViralDiagnosisP
     setScript(segments);
     setActivePanel('script');
     if (onClose) onClose();
+  };
+
+  const generateOptimizedScript = async () => {
+    if (!diagnosis) return;
+
+    setGeneratingScript(true);
+    try {
+      // Pedir tópico e duração ao usuário
+      const topic = prompt('Qual o tópico do seu vídeo?', '');
+      if (!topic) {
+        setGeneratingScript(false);
+        return;
+      }
+
+      const durationInput = prompt('Qual a duração desejada em segundos?', '60');
+      let duration = parseInt(durationInput || '60', 10);
+
+      if (isNaN(duration) || duration < 10) {
+        alert('Duração inválida. Usando 60 segundos como padrão.');
+        duration = 60;
+      }
+
+      // Gerar roteiro otimizado usando os insights virais
+      const segments = await generateScriptFromViralDiagnosis(topic, duration, diagnosis);
+      
+      setScript(segments);
+      setActivePanel('script');
+      if (onClose) onClose();
+    } catch (err: any) {
+      console.error('Erro ao gerar roteiro otimizado:', err);
+      alert('Erro ao gerar roteiro otimizado: ' + err.message);
+    } finally {
+      setGeneratingScript(false);
+    }
   };
 
   if (loading) {
@@ -132,20 +171,39 @@ export function ViralDiagnosis({ videoId, videoTitle, onClose }: ViralDiagnosisP
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-6 h-6 text-green-600" />
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Diagnóstico Completo
           </h2>
         </div>
-        <button
-          onClick={applyToEditor}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
-        >
-          <FileText className="w-4 h-4" />
-          Aplicar ao Editor
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={generateOptimizedScript}
+            disabled={generatingScript}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {generatingScript ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-4 h-4" />
+                Gerar Roteiro Otimizado
+              </>
+            )}
+          </button>
+          <button
+            onClick={applyToEditor}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+          >
+            <FileText className="w-4 h-4" />
+            Usar Template
+          </button>
+        </div>
       </div>
 
       {/* Métricas */}

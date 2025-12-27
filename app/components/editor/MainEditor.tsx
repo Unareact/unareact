@@ -5,17 +5,18 @@ import { ScriptGenerator } from '../script/ScriptGenerator';
 import { ScriptEditor } from '../script/ScriptEditor';
 import { VideoPlayer } from '../player/VideoPlayer';
 import { Timeline } from '../timeline/Timeline';
-import { FileText, Video, Scissors, TrendingUp, Download } from 'lucide-react';
+import { FileText, Video, Scissors, TrendingUp, Download, Upload } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { ViralVideoList } from '../viral/ViralVideoList';
 import { YouTubeDownloader } from '../youtube/YouTubeDownloader';
+import { FileUploader } from '../upload/FileUploader';
 
 export function MainEditor() {
   const { activePanel, setActivePanel } = useEditorStore();
 
   const panels = [
-    { id: 'script' as const, label: 'Roteiro', icon: FileText },
     { id: 'viral' as const, label: 'Virais', icon: TrendingUp },
+    { id: 'script' as const, label: 'Roteiro', icon: FileText },
     { id: 'editor' as const, label: 'Editor', icon: Scissors },
     { id: 'preview' as const, label: 'Preview', icon: Video },
     { id: 'download' as const, label: 'Download', icon: Download },
@@ -93,11 +94,25 @@ export function MainEditor() {
             <div className="space-y-4">
               <VideoPlayer />
               {activePanel === 'editor' && (
-                <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                    Timeline de Edição
-                  </h2>
-                  <Timeline />
+                <div className="space-y-4">
+                  {/* Upload de Arquivos */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Upload className="w-5 h-5 text-purple-600" />
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Upload de Arquivos
+                      </h2>
+                    </div>
+                    <FileUploader />
+                  </div>
+
+                  {/* Timeline de Edição */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Timeline de Edição
+                    </h2>
+                    <Timeline />
+                  </div>
                 </div>
               )}
             </div>

@@ -24,11 +24,11 @@ export const PLATFORMS: Record<string, PlatformConfig> = {
   },
   tiktok: {
     name: 'TikTok',
-    apiAvailable: false, // API oficial muito limitada
+    apiAvailable: true, // Via APIs de terceiros (RapidAPI)
     isFree: false,
-    requiresApproval: true,
+    requiresApproval: false,
     cost: '$20-100/mês (APIs terceiros)',
-    status: 'in-development',
+    status: 'implemented',
   },
   facebook: {
     name: 'Facebook',

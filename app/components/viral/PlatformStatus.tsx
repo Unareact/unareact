@@ -96,12 +96,6 @@ export function PlatformStatus() {
           </div>
         ))}
       </div>
-      <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          <strong>Nota:</strong> Algumas plataformas têm limitações de acesso. 
-          Consulte o guia completo em <code className="text-purple-600">GUIA_APIS_PLATAFORMAS.md</code>
-        </p>
-      </div>
     </div>
   );
 }

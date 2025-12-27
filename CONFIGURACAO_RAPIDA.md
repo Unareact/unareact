@@ -138,3 +138,5 @@ Veja o arquivo `GUIA_CONFIGURACAO_GITHUB_SUPABASE_VERCEL.md` para instruções d
 **Erro: "Row Level Security policy violation"**
 → Verifique as políticas RLS no Supabase
 
+
+

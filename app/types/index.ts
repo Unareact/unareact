@@ -29,6 +29,11 @@ export interface ScriptGenerationParams {
   duration: number;
   style: 'educational' | 'entertaining' | 'promotional' | 'documentary';
   tone: 'formal' | 'casual' | 'energetic' | 'calm';
+  viralInsights?: {
+    viralFactors: ViralDiagnosis['viralFactors'];
+    insights: ViralDiagnosis['insights'];
+    editingRecommendations: ViralDiagnosis['editingRecommendations'];
+  };
 }
 
 export interface ViralVideo {

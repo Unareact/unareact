@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ScriptSegment, VideoClip, Project, ScriptGenerationParams } from '@/app/types';
+import { ScriptSegment, VideoClip, Project, ScriptGenerationParams, ViralDiagnosis } from '@/app/types';
 
 interface EditorState {
   // Projeto atual
@@ -14,6 +14,9 @@ interface EditorState {
   currentTime: number;
   isPlaying: boolean;
   duration: number;
+  
+  // Diagnóstico Viral (para otimização de roteiros)
+  currentViralDiagnosis: ViralDiagnosis | null;
   
   // UI
   activePanel: 'script' | 'editor' | 'preview' | 'viral' | 'download';
@@ -36,6 +39,7 @@ interface EditorState {
   setActivePanel: (panel: 'script' | 'editor' | 'preview' | 'viral' | 'download') => void;
   setSelectedClipId: (id: string | null) => void;
   setIsGeneratingScript: (generating: boolean) => void;
+  setCurrentViralDiagnosis: (diagnosis: ViralDiagnosis | null) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -46,9 +50,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   currentTime: 0,
   isPlaying: false,
   duration: 0,
-  activePanel: 'script',
+  activePanel: 'viral', // Sempre abre na aba Virais
   selectedClipId: null,
   isGeneratingScript: false,
+  currentViralDiagnosis: null,
   
   // Actions
   setCurrentProject: (project) => set({ currentProject: project }),
@@ -95,5 +100,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   setActivePanel: (panel) => set({ activePanel: panel }),
   setSelectedClipId: (id) => set({ selectedClipId: id }),
   setIsGeneratingScript: (generating) => set({ isGeneratingScript: generating }),
+  setCurrentViralDiagnosis: (diagnosis) => set({ currentViralDiagnosis: diagnosis }),
 }));
 

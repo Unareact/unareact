@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { ViralVideo } from '@/app/types';
+import { TikTokService } from '@/app/lib/services/tiktok-service';
 
 // YouTube Data API v3
 const youtube = google.youtube('v3');
@@ -8,6 +9,7 @@ const youtube = google.youtube('v3');
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const platform = searchParams.get('platform') || 'youtube'; // 'youtube', 'tiktok', ou 'all'
     const regionParam = searchParams.get('region') || 'US';
     const maxResults = parseInt(searchParams.get('maxResults') || '50');
     const category = searchParams.get('category') || '0';
@@ -16,6 +18,140 @@ export async function GET(request: NextRequest) {
     const minLikesPerDay = parseFloat(searchParams.get('minLikesPerDay') || '0');
     const sortBy = searchParams.get('sortBy') || 'views'; // Padrão: mais views primeiro
 
+    // Se for apenas TikTok, buscar só do TikTok
+    if (platform === 'tiktok') {
+      return await getTikTokVideos(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
+    }
+
+    // Se for 'all', buscar de ambas as plataformas
+    if (platform === 'all') {
+      const [youtubeResult, tiktokResult] = await Promise.allSettled([
+        getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
+        getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
+      ]);
+
+      const allVideos: ViralVideo[] = [];
+      
+      // Extrair vídeos do YouTube
+      if (youtubeResult.status === 'fulfilled') {
+        allVideos.push(...youtubeResult.value);
+      }
+      
+      // Extrair vídeos do TikTok
+      if (tiktokResult.status === 'fulfilled') {
+        allVideos.push(...tiktokResult.value);
+      }
+
+      // Ordenar todos os vídeos juntos
+      const sortedVideos = sortVideos(allVideos, sortBy);
+      const finalVideos = sortedVideos.slice(0, maxResults);
+
+      return NextResponse.json({
+        videos: finalVideos,
+        total: finalVideos.length,
+        platform: 'all',
+        filtersApplied: {
+          minLikes: minLikes > 0,
+          maxDaysAgo: maxDaysAgo > 0,
+          minLikesPerDay: minLikesPerDay > 0,
+          sortBy,
+        },
+      });
+    }
+
+    // Padrão: YouTube (código existente)
+    return await getYouTubeVideos(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
+  } catch (error: any) {
+    console.error('Erro ao buscar vídeos virais:', error);
+    return NextResponse.json(
+      { error: error.message || 'Erro ao buscar vídeos virais' },
+      { status: 500 }
+    );
+  }
+}
+
+// Função auxiliar para buscar dados do TikTok (retorna array)
+async function getTikTokVideosData(
+  maxResults: number,
+  minLikes: number,
+  maxDaysAgo: number,
+  minLikesPerDay: number,
+  sortBy: string
+): Promise<ViralVideo[]> {
+  const tiktokService = new TikTokService();
+  let videos = await tiktokService.getTrending(maxResults * 2); // Buscar mais para ter opções após filtros
+
+  // Aplicar filtros
+  if (minLikes > 0) {
+    videos = videos.filter(video => video.likeCount >= minLikes);
+  }
+
+  if (maxDaysAgo > 0) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - maxDaysAgo);
+    cutoffDate.setHours(0, 0, 0, 0);
+    
+    videos = videos.filter(video => {
+      const publishedDate = new Date(video.publishedAt);
+      publishedDate.setHours(0, 0, 0, 0);
+      return publishedDate >= cutoffDate;
+    });
+  }
+
+  if (minLikesPerDay > 0) {
+    videos = videos.filter(video => {
+      const likesPerDay = video.likesPerDay || 0;
+      return likesPerDay >= minLikesPerDay;
+    });
+  }
+
+  // Ordenar
+  const sortedVideos = sortVideos(videos, sortBy);
+  return sortedVideos.slice(0, maxResults);
+}
+
+// Função para buscar vídeos do TikTok (retorna NextResponse)
+async function getTikTokVideos(
+  maxResults: number,
+  minLikes: number,
+  maxDaysAgo: number,
+  minLikesPerDay: number,
+  sortBy: string
+) {
+  try {
+    const finalVideos = await getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
+
+    return NextResponse.json({
+      videos: finalVideos,
+      total: finalVideos.length,
+      platform: 'tiktok',
+      filtersApplied: {
+        minLikes: minLikes > 0,
+        maxDaysAgo: maxDaysAgo > 0,
+        minLikesPerDay: minLikesPerDay > 0,
+        sortBy,
+      },
+    });
+  } catch (error: any) {
+    console.error('Erro ao buscar vídeos do TikTok:', error);
+    return NextResponse.json(
+      { error: `Erro ao buscar vídeos do TikTok: ${error.message}` },
+      { status: 500 }
+    );
+  }
+}
+
+// Função auxiliar para buscar dados do YouTube (retorna array)
+async function getYouTubeVideosData(
+  regionParam: string,
+  maxResults: number,
+  category: string,
+  minLikes: number,
+  maxDaysAgo: number,
+  minLikesPerDay: number,
+  sortBy: string
+): Promise<ViralVideo[]> {
+  try {
     const apiKey = process.env.YOUTUBE_API_KEY;
     
     if (!apiKey) {
@@ -181,27 +317,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Limitar resultados finais
-    const finalVideos = filteredVideos.slice(0, maxResults);
+    return filteredVideos.slice(0, maxResults);
+  } catch (error: any) {
+    console.error('Erro ao buscar vídeos do YouTube:', error);
+    throw error;
+  }
+}
 
-    // Log para debug
-    console.log('Resumo dos filtros:', {
-      region: regionParam,
-      category: category !== '0' ? category : 'Todas',
-      minLikes,
-      maxDaysAgo,
-      minLikesPerDay,
-      sortBy,
-      totalAntes: videos.length,
-      totalDepois: filteredVideos.length,
-      totalRetornado: finalVideos.length,
-    });
+// Função para buscar vídeos do YouTube (retorna NextResponse)
+async function getYouTubeVideos(
+  regionParam: string,
+  maxResults: number,
+  category: string,
+  minLikes: number,
+  maxDaysAgo: number,
+  minLikesPerDay: number,
+  sortBy: string
+) {
+  try {
+    const finalVideos = await getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
+    const allVideos = await getYouTubeVideosData(regionParam, maxResults * 3, category, 0, 0, 0, sortBy);
 
     return NextResponse.json({ 
       videos: finalVideos,
-      total: filteredVideos.length,
-      totalBeforeFilters: videos.length,
+      total: finalVideos.length,
+      totalBeforeFilters: allVideos.length,
       filtered: minLikes > 0 || maxDaysAgo > 0 || minLikesPerDay > 0 || (category && category !== '0'),
       regions: regionParam === 'ALL_AMERICAS' ? 'Toda América' : regionParam,
+      platform: 'youtube',
       filtersApplied: {
         minLikes: minLikes > 0,
         maxDaysAgo: maxDaysAgo > 0,
@@ -211,11 +354,48 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Erro ao buscar vídeos virais:', error);
+    console.error('Erro ao buscar vídeos do YouTube:', error);
     return NextResponse.json(
-      { error: error.message || 'Erro ao buscar vídeos virais' },
+      { error: `Erro ao buscar vídeos do YouTube: ${error.message}` },
       { status: 500 }
     );
   }
+}
+
+// Função auxiliar para ordenar vídeos
+function sortVideos(videos: ViralVideo[], sortBy: string): ViralVideo[] {
+  const sorted = [...videos];
+  
+  switch (sortBy) {
+    case 'likes':
+      sorted.sort((a, b) => b.likeCount - a.likeCount);
+      break;
+    case 'views':
+      sorted.sort((a, b) => b.viewCount - a.viewCount);
+      break;
+    case 'comments':
+      sorted.sort((a, b) => b.commentCount - a.commentCount);
+      break;
+    case 'recent':
+      sorted.sort((a, b) => {
+        const dateA = new Date(a.publishedAt).getTime();
+        const dateB = new Date(b.publishedAt).getTime();
+        return dateB - dateA;
+      });
+      break;
+    case 'growth':
+      sorted.sort((a, b) => {
+        const growthA = a.likesPerDay || 0;
+        const growthB = b.likesPerDay || 0;
+        return growthB - growthA;
+      });
+      break;
+    case 'viralScore':
+    default:
+      sorted.sort((a, b) => b.viralScore - a.viralScore);
+      break;
+  }
+  
+  return sorted;
 }
 
