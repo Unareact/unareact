@@ -162,8 +162,8 @@ async function getYouTubeVideosData(
     const apiKey = process.env.YOUTUBE_API_KEY;
     
     if (!apiKey) {
-      console.warn('YouTube API Key não configurada');
-      return []; // Retornar array vazio em vez de NextResponse
+      console.error('❌ YouTube API Key não configurada no .env.local');
+      throw new Error('YouTube API Key não configurada. Configure YOUTUBE_API_KEY no .env.local');
     }
 
     // Regiões da América

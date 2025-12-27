@@ -60,7 +60,16 @@ export function ViralVideoList() {
       });
       
       if (data.error) {
+        console.error('❌ Erro da API:', data.error);
         throw new Error(data.error);
+      }
+      
+      if (!data.videos || data.videos.length === 0) {
+        console.warn('⚠️ Nenhum vídeo retornado da API', { 
+          platform: data.platform, 
+          total: data.total,
+          filtersApplied: data.filtersApplied 
+        });
       }
       
       setVideos(data.videos || []);
