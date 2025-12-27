@@ -161,7 +161,7 @@ PASSO 4: ANÁLISE DE PADRÕES REPLICÁVEIS
       }
     ],
     "targetAudience": "Descrição ESPECÍFICA baseada em dados. Analise: faixa etária estimada (baseado em categoria, tags, estilo), interesses (baseado em tags e descrição), comportamento (baseado em engajamento - muitos comentários = audiência participativa, muitos likes = audiência que valoriza conteúdo). Exemplo: 'Audiência estimada: 18-35 anos, interessados em [tema específico das tags], comportamento altamente engajado (${commentToViewRatio.toFixed(2)}% de comentários indica participação ativa).'",
-    "contentPatterns": ["Array de 5-8 padrões ESPECÍFICOS e replicáveis. Exemplos: 'Título usa número (${snippet?.title.match(/\d+/)?.[0] || 'N/A'}) para criar expectativa', 'Descrição tem ${description.split('\\n').length} parágrafos com estrutura clara', 'Duração de ${totalSeconds}s é ideal para formato [short/long]-form', 'Taxa de engajamento ${engagementRate > 5 ? 'excepcional' : engagementRate > 2 ? 'boa' : 'pode melhorar'} sugere [insight específico]'"],
+    "contentPatterns": ["Array de 5-8 padrões ESPECÍFICOS e replicáveis. Exemplos: 'Título usa número (${snippet?.title ? (snippet.title.match(/\d+/)?.[0] || 'N/A') : 'N/A'}) para criar expectativa', 'Descrição tem ${description.split('\\n').length} parágrafos com estrutura clara', 'Duração de ${totalSeconds}s é ideal para formato [short/long]-form', 'Taxa de engajamento ${engagementRate > 5 ? 'excepcional' : engagementRate > 2 ? 'boa' : 'pode melhorar'} sugere [insight específico]'"],
     "recommendations": [
       "Array de 5-7 recomendações ESPECÍFICAS e ACIONÁVEIS. Formato: 'AÇÃO CONCRETA + CONTEXTO + RESULTADO ESPERADO'. Exemplos BONS: 'Use transições rápidas (corte a cada 1.5-2s) nos primeiros 15 segundos para manter atenção, depois aumente para 3-4s no desenvolvimento', 'Inclua números no título (ex: '5 maneiras', '10 segredos') pois aumenta CTR em 20-30%', 'Comece com pergunta direta nos primeiros 3 segundos para criar curiosidade gap'. Exemplos RUINS (NÃO USE): 'Use transições', 'Melhore o título', 'Seja interessante'."
     ]
@@ -181,7 +181,7 @@ PASSO 4: ANÁLISE DE PADRÕES REPLICÁVEIS
         "type": "hook|setup|conflict|resolution|cta",
         "duration": ${Math.round(totalSeconds * 0.1)},
         "description": "Descrição ESPECÍFICA do objetivo deste segmento. Exemplo: 'Este segmento deve criar curiosidade gap apresentando uma pergunta intrigante que o espectador precisa responder assistindo o vídeo.'",
-        "example": "Exemplo CONCRETO e REALISTA de texto/fala. Baseado no título '${snippet?.title.substring(0, 50)}...', crie um exemplo que faça sentido. Exemplo: 'Você já se perguntou por que alguns vídeos viralizam enquanto outros, com conteúdo similar, não conseguem nem 1000 visualizações? Hoje vou te mostrar os 3 segredos que ninguém fala...' NÃO use placeholders como '[texto aqui]'."
+        "example": "Exemplo CONCRETO e REALISTA de texto/fala. Baseado no título '${snippet?.title ? snippet.title.substring(0, 50) : 'vídeo'}'..., crie um exemplo que faça sentido. Exemplo: 'Você já se perguntou por que alguns vídeos viralizam enquanto outros, com conteúdo similar, não conseguem nem 1000 visualizações? Hoje vou te mostrar os 3 segredos que ninguém fala...' NÃO use placeholders como '[texto aqui]'."
       }
     ]
   }
