@@ -83,8 +83,10 @@ async function getTikTokVideosData(
   minLikesPerDay: number,
   sortBy: string
 ): Promise<ViralVideo[]> {
+  console.log(`🎵 Buscando TikTok: maxResults=${maxResults}, minLikes=${minLikes}`);
   const tiktokService = new TikTokService();
   let videos = await tiktokService.getTrending(maxResults * 2); // Buscar mais para ter opções após filtros
+  console.log(`📊 TikTok: ${videos.length} vídeos recebidos da API`);
 
   // Aplicar filtros
   if (minLikes > 0) {
@@ -176,6 +178,8 @@ async function getYouTubeVideosData(
     // Buscar vídeos de todas as regiões selecionadas
     const allVideos: any[] = [];
     
+    console.log(`🔍 Buscando YouTube: ${regionsToSearch.length} região(ões), maxResults: ${maxResults}`);
+    
     for (const regionCode of regionsToSearch) {
       try {
         // Construir parâmetros da requisição
@@ -192,16 +196,22 @@ async function getYouTubeVideosData(
           requestParams.videoCategoryId = category;
         }
         
+        console.log(`📡 Chamando YouTube API para região ${regionCode}...`);
         const trendingResponse = await youtube.videos.list(requestParams);
         
         if (trendingResponse.data.items) {
+          console.log(`✅ Região ${regionCode}: ${trendingResponse.data.items.length} vídeos encontrados`);
           allVideos.push(...trendingResponse.data.items);
+        } else {
+          console.warn(`⚠️ Região ${regionCode}: Nenhum vídeo retornado`);
         }
       } catch (error: any) {
-        console.error(`Erro ao buscar vídeos da região ${regionCode}:`, error.message);
+        console.error(`❌ Erro ao buscar vídeos da região ${regionCode}:`, error.message);
         // Continuar com outras regiões mesmo se uma falhar
       }
     }
+    
+    console.log(`📊 Total de vídeos coletados: ${allVideos.length}`);
 
     // Remover duplicatas (mesmo video ID)
     const uniqueVideos = Array.from(
@@ -320,9 +330,11 @@ async function getYouTubeVideosData(
     }
 
     // Limitar resultados finais
-    return filteredVideos.slice(0, maxResults);
+    const finalVideos = filteredVideos.slice(0, maxResults);
+    console.log(`✅ YouTube: ${finalVideos.length} vídeos finais após filtros`);
+    return finalVideos;
   } catch (error: any) {
-    console.error('Erro ao buscar vídeos do YouTube:', error);
+    console.error('❌ Erro ao buscar vídeos do YouTube:', error);
     throw error;
   }
 }
