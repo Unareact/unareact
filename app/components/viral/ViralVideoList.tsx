@@ -86,9 +86,11 @@ export function ViralVideoList() {
     }
   }, [platform, region, minLikes, maxDaysAgo, minLikesPerDay, category, sortBy]);
 
+  // Buscar apenas quando filtros principais mudam (não a cada digitação nos inputs numéricos)
   useEffect(() => {
     fetchViralVideos();
-  }, [fetchViralVideos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platform, region, category, sortBy]); // Removido minLikes, maxDaysAgo, minLikesPerDay - só busca quando clicar em "Buscar"
 
   const handleDownload = async (video: ViralVideo) => {
     try {
@@ -305,7 +307,16 @@ export function ViralVideoList() {
               <input
                 type="number"
                 value={minLikes}
-                onChange={(e) => setMinLikes(parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  e.preventDefault();
+                  setMinLikes(parseInt(e.target.value) || 0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    fetchViralVideos();
+                  }
+                }}
                 min={0}
                 step={100000}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
@@ -346,7 +357,16 @@ export function ViralVideoList() {
               <input
                 type="number"
                 value={minLikesPerDay}
-                onChange={(e) => setMinLikesPerDay(parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  e.preventDefault();
+                  setMinLikesPerDay(parseInt(e.target.value) || 0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    fetchViralVideos();
+                  }
+                }}
                 min={0}
                 step={1000}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
