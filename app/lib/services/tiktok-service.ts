@@ -21,7 +21,9 @@ export class TikTokService {
     // Verificar se é um placeholder
     if (this.apiKey.includes('sua-chave') || this.apiKey.includes('rapidapi-aqui') || this.apiKey.length < 30) {
       console.error('❌ TikTok API Key parece ser um placeholder do env.example');
+      console.error(`   Chave atual: ${this.apiKey.substring(0, 20)}... (${this.apiKey.length} caracteres)`);
       console.error('   Configure uma API Key válida da RapidAPI no .env.local');
+      console.error('   Veja: https://rapidapi.com/ → Procure "TikTok API" → Subscribe → Copie a chave');
       return [];
     }
 

@@ -7,7 +7,7 @@ import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
-import { PlatformStatus } from './PlatformStatus';
+// import { PlatformStatus } from './PlatformStatus';
 
 export function ViralVideoList() {
   const [videos, setVideos] = useState<ViralVideo[]>([]);
@@ -205,7 +205,7 @@ export function ViralVideoList() {
   return (
     <div className="space-y-4">
       {/* Status das Plataformas */}
-      <PlatformStatus />
+      {/* <PlatformStatus /> */}
       
       {/* Filtros */}
       <div className="space-y-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
@@ -473,15 +473,15 @@ export function ViralVideoList() {
             </div>
             {stats.total === 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-2">
                   ⚠️ Nenhum vídeo encontrado com os filtros aplicados. Tente:
-                  <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li>Reduzir o número mínimo de curtidas</li>
-                    <li>Aumentar o período de publicação</li>
-                    <li>Remover filtros de crescimento (curtidas/dia)</li>
-                    <li>Selecionar "Todas" na categoria</li>
-                  </ul>
                 </p>
+                <ul className="list-disc list-inside mt-1 space-y-1 text-sm text-yellow-800 dark:text-yellow-300">
+                  <li>Reduzir o número mínimo de curtidas</li>
+                  <li>Aumentar o período de publicação</li>
+                  <li>Remover filtros de crescimento (curtidas/dia)</li>
+                  <li>Selecionar "Todas" na categoria</li>
+                </ul>
               </div>
             )}
           </div>

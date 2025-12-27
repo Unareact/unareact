@@ -186,10 +186,12 @@ async function getYouTubeVideosData(
       return []; // Retornar vazio em vez de throw para não quebrar quando platform=all
     }
     
-    // Verificar se é um placeholder
-    if (apiKey.includes('AIzaSy...') || apiKey.length < 30) {
+    // Verificar se é um placeholder ou muito curta
+    if (apiKey.includes('AIzaSy...') || apiKey.length < 30 || apiKey === 'AIzaSy......') {
       console.error('❌ YouTube API Key parece ser um placeholder ou está incompleta');
+      console.error(`   Tamanho atual: ${apiKey.length} caracteres (deveria ser ~39)`);
       console.error('   Configure uma API Key válida no .env.local');
+      console.error('   Veja: https://console.cloud.google.com/ → APIs & Services → Credentials');
       return [];
     }
 
