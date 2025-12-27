@@ -226,11 +226,21 @@ async function getYouTubeVideosData(
         console.log(`📡 Chamando YouTube API para região ${regionCode}...`);
         const trendingResponse = await youtube.videos.list(requestParams);
         
+        console.log(`📊 YouTube API Response para ${regionCode}:`, {
+          status: 'ok',
+          itemsCount: trendingResponse.data.items?.length || 0,
+          hasItems: !!trendingResponse.data.items,
+          pageInfo: trendingResponse.data.pageInfo,
+        });
+        
         if (trendingResponse.data.items && trendingResponse.data.items.length > 0) {
           console.log(`✅ Região ${regionCode}: ${trendingResponse.data.items.length} vídeos encontrados`);
           allVideos.push(...trendingResponse.data.items);
         } else {
           console.warn(`⚠️ Região ${regionCode}: Nenhum vídeo retornado (items: ${trendingResponse.data.items?.length || 0})`);
+          if (trendingResponse.data.error) {
+            console.error('❌ Erro na resposta:', trendingResponse.data.error);
+          }
         }
       } catch (error: any) {
         const errorMessage = error.message || error.toString();
