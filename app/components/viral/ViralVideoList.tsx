@@ -171,12 +171,27 @@ export function ViralVideoList() {
   }
 
   if (error) {
+    const isApiKeyError = error.includes('API Key') || error.includes('não configurada');
+    const isTikTokError = error.includes('TikTok') || error.includes('Too many requests');
+    
     return (
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-        <p className="text-red-800 dark:text-red-300 mb-4">{error}</p>
-        <p className="text-sm text-red-600 dark:text-red-400 mb-4">
-          Configure a variável YOUTUBE_API_KEY no arquivo .env.local
-        </p>
+        <p className="text-red-800 dark:text-red-300 mb-4 font-semibold">{error}</p>
+        {isApiKeyError && (
+          <div className="text-sm text-red-600 dark:text-red-400 mb-4 space-y-2">
+            <p><strong>Como resolver:</strong></p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Configure a variável YOUTUBE_API_KEY no arquivo .env.local</li>
+              <li>Para TikTok: Configure TIKTOK_RAPIDAPI_KEY e TIKTOK_RAPIDAPI_HOST</li>
+              <li>Reinicie o servidor após adicionar as variáveis</li>
+            </ul>
+          </div>
+        )}
+        {isTikTokError && (
+          <div className="text-sm text-yellow-600 dark:text-yellow-400 mb-4">
+            <p>⚠️ TikTok API está com rate limit. Aguarde alguns minutos ou verifique seu plano na RapidAPI.</p>
+          </div>
+        )}
         <button
           onClick={fetchViralVideos}
           className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
