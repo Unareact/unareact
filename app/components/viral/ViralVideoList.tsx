@@ -14,7 +14,7 @@ export function ViralVideoList() {
   const [loading, setLoading] = useState(true);
   const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>('all'); // Plataforma: YouTube, TikTok ou Todas
   const [region, setRegion] = useState('ALL_AMERICAS');
-  const [minLikes, setMinLikes] = useState(100000); // 100K por padrão
+  const [minLikes, setMinLikes] = useState(0); // Sem filtro por padrão
   const [maxDaysAgo, setMaxDaysAgo] = useState(0);
   const [minLikesPerDay, setMinLikesPerDay] = useState(0);
   const [category, setCategory] = useState('0'); // Categoria/nicho (apenas YouTube)
@@ -45,11 +45,19 @@ export function ViralVideoList() {
       }
       
       const url = `/api/viral?${params.toString()}`;
+      console.log('🔍 Buscando vídeos:', { platform, url, params: Object.fromEntries(params) });
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Erro ao buscar vídeos virais');
       }
       const data = await response.json();
+      
+      console.log('📊 Resposta da API:', { 
+        platform: data.platform, 
+        total: data.total, 
+        videosCount: data.videos?.length || 0,
+        error: data.error 
+      });
       
       if (data.error) {
         throw new Error(data.error);

@@ -18,13 +18,17 @@ export async function GET(request: NextRequest) {
     const minLikesPerDay = parseFloat(searchParams.get('minLikesPerDay') || '0');
     const sortBy = searchParams.get('sortBy') || 'views'; // Padrão: mais views primeiro
 
+    console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category });
+
     // Se for apenas TikTok, buscar só do TikTok
     if (platform === 'tiktok') {
+      console.log('🎵 Buscando apenas TikTok...');
       return await getTikTokVideos(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
     }
 
     // Se for 'all', buscar de ambas as plataformas
     if (platform === 'all') {
+      console.log('📱 Buscando de todas as plataformas...');
       const [youtubeResult, tiktokResult] = await Promise.allSettled([
         getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
         getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
@@ -60,6 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Padrão: YouTube (código existente)
+    console.log('▶️ Buscando apenas YouTube...');
     return await getYouTubeVideos(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
   } catch (error: any) {
     console.error('Erro ao buscar vídeos virais:', error);
