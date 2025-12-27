@@ -5,6 +5,7 @@ import { ScriptGenerator } from '../script/ScriptGenerator';
 import { ScriptEditor } from '../script/ScriptEditor';
 import { VideoPlayer } from '../player/VideoPlayer';
 import { Timeline } from '../timeline/Timeline';
+import { EnhancedTimeline } from '../timeline/EnhancedTimeline';
 import { FileText, Video, Scissors, TrendingUp, Download, Upload } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { ViralVideoList } from '../viral/ViralVideoList';
@@ -111,7 +112,7 @@ export function MainEditor() {
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                       Timeline de Edição
                     </h2>
-                    <Timeline />
+                    <EnhancedTimeline />
                   </div>
                 </div>
               )}
