@@ -14,7 +14,8 @@ export class TikTokService {
    */
   async getTrending(count: number = 20): Promise<ViralVideo[]> {
     if (!this.apiKey || !this.apiHost) {
-      throw new Error('TikTok API Key ou Host não configurados. Adicione TIKTOK_RAPIDAPI_KEY e TIKTOK_RAPIDAPI_HOST no .env.local');
+      console.warn('⚠️ TikTok API Key ou Host não configurados - retornando array vazio');
+      return []; // Retornar vazio em vez de throw para não quebrar quando platform=all
     }
 
     try {
