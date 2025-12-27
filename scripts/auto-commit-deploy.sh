@@ -61,25 +61,31 @@ do_push() {
 do_vercel_deploy() {
     echo -e "${GREEN}🌐 Tentando deploy no Vercel...${NC}"
     
-    # Verificar se Vercel CLI está instalado
-    if ! command -v vercel &> /dev/null; then
-        echo -e "${YELLOW}📦 Instalando Vercel CLI...${NC}"
-        npm install -g vercel || {
+    # Verificar se Vercel CLI está disponível (global ou local)
+    VERCEL_CMD=""
+    if command -v vercel &> /dev/null; then
+        VERCEL_CMD="vercel"
+    elif [ -f "node_modules/.bin/vercel" ]; then
+        VERCEL_CMD="npx vercel"
+    else
+        echo -e "${YELLOW}📦 Instalando Vercel CLI localmente...${NC}"
+        npm install vercel --save-dev || {
             echo -e "${RED}❌ Falha ao instalar Vercel CLI${NC}"
             return 1
         }
+        VERCEL_CMD="npx vercel"
     fi
     
     # Verificar se está logado
-    if ! vercel whoami &> /dev/null; then
+    if ! $VERCEL_CMD whoami &> /dev/null; then
         echo -e "${YELLOW}🔐 Você precisa fazer login no Vercel${NC}"
-        echo -e "${YELLOW}💡 Execute: vercel login${NC}"
+        echo -e "${YELLOW}💡 Execute: $VERCEL_CMD login${NC}"
         return 1
     fi
     
     # Fazer deploy
     echo -e "${GREEN}🚀 Fazendo deploy...${NC}"
-    vercel --prod || {
+    $VERCEL_CMD --prod || {
         echo -e "${RED}❌ Falha no deploy${NC}"
         return 1
     }
