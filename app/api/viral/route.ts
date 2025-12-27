@@ -185,6 +185,13 @@ async function getYouTubeVideosData(
       console.warn('⚠️ YouTube API Key não configurada no .env.local - retornando array vazio');
       return []; // Retornar vazio em vez de throw para não quebrar quando platform=all
     }
+    
+    // Verificar se é um placeholder
+    if (apiKey.includes('AIzaSy...') || apiKey.length < 30) {
+      console.error('❌ YouTube API Key parece ser um placeholder ou está incompleta');
+      console.error('   Configure uma API Key válida no .env.local');
+      return [];
+    }
 
     // Regiões da América
     const americasRegions = ['US', 'BR', 'MX', 'AR', 'CO', 'CL', 'PE', 'VE', 'EC', 'GT', 'CU', 'BO', 'HT', 'DO', 'HN', 'PY', 'NI', 'SV', 'CR', 'PA', 'UY', 'JM', 'TT', 'BZ', 'BS', 'BB', 'SR', 'GY', 'CA'];

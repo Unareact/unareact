@@ -17,6 +17,13 @@ export class TikTokService {
       console.warn('⚠️ TikTok API Key ou Host não configurados - retornando array vazio');
       return []; // Retornar vazio em vez de throw para não quebrar quando platform=all
     }
+    
+    // Verificar se é um placeholder
+    if (this.apiKey.includes('sua-chave') || this.apiKey.includes('rapidapi-aqui') || this.apiKey.length < 30) {
+      console.error('❌ TikTok API Key parece ser um placeholder do env.example');
+      console.error('   Configure uma API Key válida da RapidAPI no .env.local');
+      return [];
+    }
 
     try {
       const url = `https://${this.apiHost}/api/post/trending?count=${count}`;
