@@ -38,13 +38,21 @@ export async function GET(request: NextRequest) {
       
       // Extrair vídeos do YouTube
       if (youtubeResult.status === 'fulfilled') {
+        console.log(`📺 YouTube retornou: ${youtubeResult.value.length} vídeos`);
         allVideos.push(...youtubeResult.value);
+      } else {
+        console.warn('⚠️ YouTube falhou:', youtubeResult.reason);
       }
       
       // Extrair vídeos do TikTok
       if (tiktokResult.status === 'fulfilled') {
+        console.log(`🎵 TikTok retornou: ${tiktokResult.value.length} vídeos`);
         allVideos.push(...tiktokResult.value);
+      } else {
+        console.warn('⚠️ TikTok falhou:', tiktokResult.reason);
       }
+      
+      console.log(`📊 Total combinado: ${allVideos.length} vídeos`);
 
       // Ordenar todos os vídeos juntos
       const sortedVideos = sortVideos(allVideos, sortBy);
@@ -83,10 +91,11 @@ async function getTikTokVideosData(
   minLikesPerDay: number,
   sortBy: string
 ): Promise<ViralVideo[]> {
-  console.log(`🎵 Buscando TikTok: maxResults=${maxResults}, minLikes=${minLikes}`);
-  const tiktokService = new TikTokService();
-  let videos = await tiktokService.getTrending(maxResults * 2); // Buscar mais para ter opções após filtros
-  console.log(`📊 TikTok: ${videos.length} vídeos recebidos da API`);
+  try {
+    console.log(`🎵 Buscando TikTok: maxResults=${maxResults}, minLikes=${minLikes}`);
+    const tiktokService = new TikTokService();
+    let videos = await tiktokService.getTrending(maxResults * 2); // Buscar mais para ter opções após filtros
+    console.log(`📊 TikTok: ${videos.length} vídeos recebidos da API`);
 
   // Aplicar filtros
   if (minLikes > 0) {
@@ -114,7 +123,18 @@ async function getTikTokVideosData(
 
   // Ordenar
   const sortedVideos = sortVideos(videos, sortBy);
-  return sortedVideos.slice(0, maxResults);
+  const finalVideos = sortedVideos.slice(0, maxResults);
+  console.log(`✅ TikTok: ${finalVideos.length} vídeos finais após filtros`);
+  return finalVideos;
+  } catch (error: any) {
+    const errorMessage = error.message || error.toString();
+    console.error('❌ Erro ao buscar vídeos do TikTok:', {
+      message: errorMessage,
+      details: error
+    });
+    // Retornar array vazio em vez de throw para não quebrar quando platform=all
+    return [];
+  }
 }
 
 // Função para buscar vídeos do TikTok (retorna NextResponse)
@@ -162,8 +182,8 @@ async function getYouTubeVideosData(
     const apiKey = process.env.YOUTUBE_API_KEY;
     
     if (!apiKey) {
-      console.error('❌ YouTube API Key não configurada no .env.local');
-      throw new Error('YouTube API Key não configurada. Configure YOUTUBE_API_KEY no .env.local');
+      console.warn('⚠️ YouTube API Key não configurada no .env.local - retornando array vazio');
+      return []; // Retornar vazio em vez de throw para não quebrar quando platform=all
     }
 
     // Regiões da América
@@ -199,14 +219,20 @@ async function getYouTubeVideosData(
         console.log(`📡 Chamando YouTube API para região ${regionCode}...`);
         const trendingResponse = await youtube.videos.list(requestParams);
         
-        if (trendingResponse.data.items) {
+        if (trendingResponse.data.items && trendingResponse.data.items.length > 0) {
           console.log(`✅ Região ${regionCode}: ${trendingResponse.data.items.length} vídeos encontrados`);
           allVideos.push(...trendingResponse.data.items);
         } else {
-          console.warn(`⚠️ Região ${regionCode}: Nenhum vídeo retornado`);
+          console.warn(`⚠️ Região ${regionCode}: Nenhum vídeo retornado (items: ${trendingResponse.data.items?.length || 0})`);
         }
       } catch (error: any) {
-        console.error(`❌ Erro ao buscar vídeos da região ${regionCode}:`, error.message);
+        const errorMessage = error.message || error.toString();
+        const errorCode = error.code || error.response?.status;
+        console.error(`❌ Erro ao buscar vídeos da região ${regionCode}:`, {
+          message: errorMessage,
+          code: errorCode,
+          details: error.response?.data || error
+        });
         // Continuar com outras regiões mesmo se uma falhar
       }
     }
@@ -331,11 +357,18 @@ async function getYouTubeVideosData(
 
     // Limitar resultados finais
     const finalVideos = filteredVideos.slice(0, maxResults);
-    console.log(`✅ YouTube: ${finalVideos.length} vídeos finais após filtros`);
+    console.log(`✅ YouTube: ${finalVideos.length} vídeos finais após filtros (de ${uniqueVideos.length} coletados)`);
     return finalVideos;
   } catch (error: any) {
-    console.error('❌ Erro ao buscar vídeos do YouTube:', error);
-    throw error;
+    const errorMessage = error.message || error.toString();
+    const errorCode = error.code || error.response?.status;
+    console.error('❌ Erro ao buscar vídeos do YouTube:', {
+      message: errorMessage,
+      code: errorCode,
+      details: error.response?.data || error
+    });
+    // Retornar array vazio em vez de throw para não quebrar quando platform=all
+    return [];
   }
 }
 
@@ -369,10 +402,29 @@ async function getYouTubeVideos(
       },
     });
   } catch (error: any) {
-    console.error('Erro ao buscar vídeos do YouTube:', error);
+    const errorMessage = error.message || error.toString();
+    console.error('❌ Erro ao buscar vídeos do YouTube (getYouTubeVideos):', {
+      message: errorMessage,
+      details: error
+    });
     return NextResponse.json(
-      { error: `Erro ao buscar vídeos do YouTube: ${error.message}` },
-      { status: 500 }
+      { 
+        videos: [],
+        total: 0,
+        totalBeforeFilters: 0,
+        filtered: false,
+        regions: regionParam === 'ALL_AMERICAS' ? 'Toda América' : regionParam,
+        platform: 'youtube',
+        error: `Erro ao buscar vídeos do YouTube: ${errorMessage}`,
+        filtersApplied: {
+          minLikes: minLikes > 0,
+          maxDaysAgo: maxDaysAgo > 0,
+          minLikesPerDay: minLikesPerDay > 0,
+          category: category && category !== '0',
+          sortBy,
+        },
+      },
+      { status: 200 } // Retornar 200 com array vazio para não quebrar o frontend
     );
   }
 }
