@@ -13,7 +13,6 @@ const nextConfig: NextConfig = {
     }
     
     // Ignorar arquivos .d.ts (TypeScript declaration files) do esbuild
-    // Usar IgnorePlugin em vez de loader
     config.plugins = config.plugins || [];
     config.plugins.push(
       new webpack.IgnorePlugin({
@@ -40,15 +39,6 @@ const nextConfig: NextConfig = {
         '@remotion/compositor-win32-x64-msvc': 'commonjs @remotion/compositor-win32-x64-msvc',
       });
     }
-    
-    // Ignorar arquivos .d.ts do esbuild especificamente
-    config.plugins = config.plugins || [];
-    config.plugins.push(
-      new webpack.IgnorePlugin({
-        resourceRegExp: /\.d\.ts$/,
-        contextRegExp: /node_modules\/esbuild/,
-      })
-    );
     
     return config;
   },
