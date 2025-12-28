@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
-import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X } from 'lucide-react';
+import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight } from 'lucide-react';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
@@ -644,28 +644,52 @@ export function ViralVideoList() {
                     <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </a>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setDiagnosingVideo({ id: video.id, title: video.title });
+                        setActivePanel('viral'); // Garantir que está no painel viral
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 text-xs sm:text-sm font-medium transition-colors"
+                      title="Analisar por que este vídeo viralizou"
+                    >
+                      <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden xs:inline">Analisar</span>
+                      <span className="xs:hidden">Analisar</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDiagnosingVideo({ id: video.id, title: video.title });
+                        setActivePanel('script'); // Ir direto para o painel de roteiros após diagnóstico
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 text-xs sm:text-sm font-medium transition-colors"
+                      title="Criar roteiro baseado neste vídeo"
+                    >
+                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Criar Roteiro</span>
+                      <span className="sm:hidden">Roteiro</span>
+                    </button>
+                  </div>
                   <button
                     onClick={() => {
-                      setDiagnosingVideo({ id: video.id, title: video.title });
-                      setActivePanel('viral'); // Garantir que está no painel viral
+                      addClip({
+                        id: `clip-${video.id}`,
+                        url: video.url,
+                        title: video.title,
+                        thumbnail: video.thumbnail,
+                        duration: 0,
+                        startTime: 0,
+                        endTime: 0,
+                        platform: video.platform,
+                      });
+                      setActivePanel('download');
                     }}
-                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 text-xs sm:text-sm font-medium transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 text-xs sm:text-sm font-medium transition-colors"
+                    title="Baixar este vídeo para editar"
                   >
-                    <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden xs:inline">Diagnosticar</span>
-                    <span className="xs:hidden">Diag</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDiagnosingVideo({ id: video.id, title: video.title });
-                      setActivePanel('script'); // Ir direto para o painel de roteiros após diagnóstico
-                    }}
-                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 text-xs sm:text-sm font-medium transition-colors"
-                    title="Diagnosticar e gerar roteiro otimizado"
-                  >
-                    <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Roteiro</span>
+                    <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Baixar Vídeo</span>
                   </button>
                 </div>
               </div>

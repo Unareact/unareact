@@ -12,6 +12,7 @@ import { cn } from '@/app/lib/utils';
 import { ViralVideoList } from '../viral/ViralVideoList';
 import { YouTubeDownloader } from '../youtube/YouTubeDownloader';
 import { FileUploader } from '../upload/FileUploader';
+import { WorkflowGuide } from '../workflow/WorkflowGuide';
 
 export function MainEditor() {
   const { activePanel, setActivePanel } = useEditorStore();
