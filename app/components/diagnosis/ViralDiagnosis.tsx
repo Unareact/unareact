@@ -16,7 +16,8 @@ import {
   Clock,
   Heart,
   MessageCircle,
-  Wand2
+  Wand2,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
