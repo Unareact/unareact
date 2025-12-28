@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
 
     // Buscar vídeos por palavra-chave
     const searchResponse = await youtube.search.list({
-      auth: apiKey,
+      key: apiKey,
       part: ['snippet'],
       q: searchQuery,
-      type: ['video'],
+      type: 'video',
       maxResults: Math.min(maxResults * 2, 50), // Buscar mais para ter opções
       order: 'viewCount', // Ordenar por visualizações
     });
