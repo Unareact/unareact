@@ -665,14 +665,11 @@ export function ViralVideoList() {
                 <button
                   onClick={() => {
                     addClip({
-                      id: `clip-${video.id}`,
+                      id: `clip-${video.id}-${Date.now()}`,
                       startTime: 0,
                       endTime: parseDuration(video.duration),
                       source: video.url,
                       type: 'video',
-                      startTime: 0,
-                      endTime: 0,
-                      platform: video.platform,
                     });
                     setActivePanel('download');
                   }}
