@@ -82,7 +82,9 @@ export function ViralVideoList() {
       
       // Região, categoria e shorts apenas para YouTube
       if (platform === 'youtube' || platform === 'all') {
-        params.append('region', region);
+        // Se region é array, enviar como string separada por vírgula
+        const regionParam = Array.isArray(region) ? region.join(',') : region;
+        params.append('region', regionParam);
         params.append('category', category);
         if (shortsOnly) {
           params.append('shortsOnly', 'true');

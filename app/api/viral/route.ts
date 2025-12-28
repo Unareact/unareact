@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (platform === 'all') {
       console.log('📱 Buscando de todas as plataformas...');
       const [youtubeResult, tiktokResult] = await Promise.allSettled([
-        getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly),
+        getYouTubeVideosData(regions, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly),
         getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
       ]);
 
