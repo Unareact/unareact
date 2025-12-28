@@ -70,7 +70,21 @@ Para cada segmento, forneça:
 - Duração estimada em segundos
 - Tipo (intro, content, outro, transition)
 
-Formate como JSON array de objetos com: id, text, duration, timestamp, type`;
+IMPORTANTE: Retorne APENAS um objeto JSON com a estrutura:
+{
+  "segments": [
+    {
+      "id": "seg-1",
+      "text": "Texto do segmento",
+      "duration": 5,
+      "timestamp": 0,
+      "type": "intro"
+    },
+    ...
+  ]
+}
+
+O campo "segments" deve ser um ARRAY de objetos. Cada objeto deve ter: id, text, duration, timestamp, type.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -95,7 +109,22 @@ Formate como JSON array de objetos com: id, text, duration, timestamp, type`;
     if (!response) throw new Error('Resposta vazia da OpenAI');
 
     const parsed = JSON.parse(response);
-    const segments = parsed.segments || parsed;
+    let segments = parsed.segments || parsed;
+
+    // Garantir que segments é um array
+    if (!Array.isArray(segments)) {
+      // Se não for array, tentar extrair de diferentes formatos possíveis
+      if (typeof segments === 'object' && segments !== null) {
+        // Pode estar em formato { script: [...] } ou { data: [...] }
+        segments = (segments as any).script || (segments as any).data || Object.values(segments);
+      }
+      
+      // Se ainda não for array, criar um array vazio ou lançar erro
+      if (!Array.isArray(segments)) {
+        console.error('Resposta da OpenAI não contém array de segments:', parsed);
+        throw new Error('Formato de resposta inválido da OpenAI. Esperado array de segments.');
+      }
+    }
 
     // Garantir formato correto
     return segments.map((seg: any, index: number) => ({
