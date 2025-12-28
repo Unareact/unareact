@@ -75,7 +75,8 @@ export async function GET(request: NextRequest) {
 
     // Padrão: YouTube (código existente)
     console.log('▶️ Buscando apenas YouTube...');
-    return await getYouTubeVideos(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly);
+    const regionParamForYouTube = Array.isArray(regions) ? regions.join(',') : regions;
+    return await getYouTubeVideos(regionParamForYouTube, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly);
   } catch (error: any) {
     console.error('Erro ao buscar vídeos virais:', error);
     return NextResponse.json(
