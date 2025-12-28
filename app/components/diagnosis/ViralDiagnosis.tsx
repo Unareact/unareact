@@ -212,6 +212,17 @@ export function ViralDiagnosis({ videoId, videoTitle, platform = 'youtube', onCl
             <FileText className="w-4 h-4" />
             Usar Template
           </button>
+          <button
+            onClick={() => {
+              applyToEditor();
+              setActivePanel('editor');
+            }}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 font-medium flex items-center gap-2"
+            title="Ir para o editor após aplicar o template"
+          >
+            <ArrowRight className="w-4 h-4" />
+            Próximo: Editar
+          </button>
         </div>
       </div>
 
