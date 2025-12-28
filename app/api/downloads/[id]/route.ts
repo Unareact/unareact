@@ -4,10 +4,11 @@ import { createSupabaseAdminClient } from '@/app/lib/supabase';
 // DELETE - Excluir download
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const params = await context.params;
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
