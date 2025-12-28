@@ -55,5 +55,23 @@ export type SavedViralVideo = {
   saved_at: string
 }
 
+export type VideoDownload = {
+  id: string
+  user_id: string | null
+  video_url: string
+  video_id: string
+  platform: string
+  title: string | null
+  filename: string
+  file_size: number
+  file_path: string | null
+  storage_url: string | null // URL do arquivo no Supabase Storage
+  format: string
+  quality: string
+  duration: number | null
+  downloaded_at: string
+  created_at: string
+}
+
 
 

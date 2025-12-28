@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { ViralVideo } from '@/app/types';
 import { TikTokService } from '@/app/lib/services/tiktok-service';
+import { matchesCategory, getCategoryById } from '@/app/lib/product-categories';
 
 // YouTube Data API v3
 const youtube = google.youtube('v3');
@@ -13,31 +14,39 @@ export async function GET(request: NextRequest) {
     const regionParam = searchParams.get('region') || 'US';
     const maxResults = parseInt(searchParams.get('maxResults') || '50');
     const category = searchParams.get('category') || '0';
+    const productCategory = searchParams.get('productCategory') || 'all';
     const minLikes = parseInt(searchParams.get('minLikes') || '0');
     const maxDaysAgo = parseInt(searchParams.get('maxDaysAgo') || '0');
     const minLikesPerDay = parseFloat(searchParams.get('minLikesPerDay') || '0');
     const shortsOnly = searchParams.get('shortsOnly') === 'true'; // Filtrar apenas YouTube Shorts
     const sortBy = searchParams.get('sortBy') || 'views'; // Padrão: mais views primeiro
 
-    console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category });
+    console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category, productCategory });
 
     // Se for apenas TikTok, buscar só do TikTok
     if (platform === 'tiktok') {
       console.log('🎵 Buscando apenas TikTok...');
-      return await getTikTokVideos(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
+      return await getTikTokVideos(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy, productCategory);
     }
 
     // Se regionParam contém vírgulas, é uma lista de países
-    const regions: string | string[] = regionParam.includes(',') 
-      ? regionParam.split(',').map(r => r.trim()) 
-      : regionParam;
+    // Também pode ser uma string vazia ou array vazio (nenhum país selecionado)
+    let regions: string | string[];
+    if (!regionParam || regionParam === '' || regionParam === '[]') {
+      // Se nenhum país selecionado, usar 'ALL_AMERICAS' como padrão
+      regions = 'ALL_AMERICAS';
+    } else if (regionParam.includes(',')) {
+      regions = regionParam.split(',').map(r => r.trim()).filter(r => r.length > 0);
+    } else {
+      regions = regionParam;
+    }
 
     // Se for 'all', buscar de ambas as plataformas
     if (platform === 'all') {
       console.log('📱 Buscando de todas as plataformas...');
       const [youtubeResult, tiktokResult] = await Promise.allSettled([
-        getYouTubeVideosData(regions, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly),
-        getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
+        getYouTubeVideosData(regions, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory),
+        getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy, productCategory),
       ]);
 
       const allVideos: ViralVideo[] = [];
@@ -81,7 +90,7 @@ export async function GET(request: NextRequest) {
     // Padrão: YouTube (código existente)
     console.log('▶️ Buscando apenas YouTube...');
     const regionParamForYouTube = Array.isArray(regions) ? regions.join(',') : regions;
-    return await getYouTubeVideos(regionParamForYouTube, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly);
+    return await getYouTubeVideos(regionParamForYouTube, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory);
   } catch (error: any) {
     console.error('Erro ao buscar vídeos virais:', error);
     return NextResponse.json(
@@ -97,12 +106,15 @@ async function getTikTokVideosData(
   minLikes: number,
   maxDaysAgo: number,
   minLikesPerDay: number,
-  sortBy: string
+  sortBy: string,
+  productCategory: string = 'all'
 ): Promise<ViralVideo[]> {
   try {
-    console.log(`🎵 Buscando TikTok: maxResults=${maxResults}, minLikes=${minLikes}`);
+    console.log(`🎵 Buscando TikTok: maxResults=${maxResults}, minLikes=${minLikes}, productCategory=${productCategory}`);
     const tiktokService = new TikTokService();
-    let videos = await tiktokService.getTrending(maxResults * 2); // Buscar mais para ter opções após filtros
+    // Buscar mais vídeos quando há filtro de categoria de produto
+    const searchMultiplier = (productCategory && productCategory !== 'all') ? 5 : 2;
+    let videos = await tiktokService.getTrending(maxResults * searchMultiplier);
     console.log(`📊 TikTok: ${videos.length} vídeos recebidos da API`);
 
   // Aplicar filtros
@@ -129,6 +141,13 @@ async function getTikTokVideosData(
     });
   }
 
+  // Filtrar por categoria de produto
+  if (productCategory && productCategory !== 'all') {
+    const before = videos.length;
+    videos = videos.filter(video => matchesCategory(video, productCategory));
+    console.log(`Filtro de categoria de produto: ${before} → ${videos.length} vídeos`);
+  }
+
   // Ordenar
   const sortedVideos = sortVideos(videos, sortBy);
   const finalVideos = sortedVideos.slice(0, maxResults);
@@ -151,10 +170,11 @@ async function getTikTokVideos(
   minLikes: number,
   maxDaysAgo: number,
   minLikesPerDay: number,
-  sortBy: string
+  sortBy: string,
+  productCategory: string = 'all'
 ) {
   try {
-    const finalVideos = await getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
+    const finalVideos = await getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy, productCategory);
 
     return NextResponse.json({
       videos: finalVideos,
@@ -189,6 +209,185 @@ function parseDurationToSeconds(duration: string): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
+// Função para buscar vídeos por palavras-chave (quando há filtro de categoria de produto)
+async function searchYouTubeByKeywords(
+  productCategory: string,
+  regionParam: string | string[],
+  maxResults: number,
+  minLikes: number,
+  maxDaysAgo: number,
+  minLikesPerDay: number,
+  sortBy: string,
+  shortsOnly: boolean,
+  apiKey: string
+): Promise<ViralVideo[]> {
+  try {
+    const category = getCategoryById(productCategory);
+    if (!category || category.keywords.length === 0) {
+      console.warn('⚠️ Categoria não encontrada ou sem palavras-chave');
+      return [];
+    }
+
+    // Usar as palavras-chave mais relevantes para buscar
+    // Priorizar palavras-chave em português e inglês
+    const mainKeywords = category.keywords
+      .filter(kw => kw.length > 4) // Filtrar palavras muito curtas
+      .slice(0, 3); // Usar as 3 primeiras palavras-chave principais
+
+    const searchQuery = mainKeywords.join(' '); // Combinar palavras-chave
+    console.log(`🔍 Buscando por palavras-chave: "${searchQuery}" (categoria: ${category.name})`);
+
+    // Buscar vídeos usando search.list
+    const searchResponse = await youtube.search.list({
+      key: apiKey,
+      part: ['snippet'],
+      q: searchQuery,
+      type: ['video'],
+      maxResults: Math.min(maxResults * 3, 50), // Buscar mais para ter opções após filtros
+      order: 'viewCount', // Ordenar por visualizações
+      relevanceLanguage: 'pt', // Priorizar português
+    });
+
+    if (!searchResponse.data.items || searchResponse.data.items.length === 0) {
+      console.warn('⚠️ Nenhum vídeo encontrado na busca por palavras-chave');
+      return [];
+    }
+
+    // Buscar estatísticas dos vídeos encontrados
+    const videoIds = searchResponse.data.items
+      .map(item => item.id?.videoId)
+      .filter(Boolean) as string[];
+
+    if (videoIds.length === 0) {
+      return [];
+    }
+
+    const videosResponse = await youtube.videos.list({
+      key: apiKey,
+      part: ['snippet', 'statistics', 'contentDetails'],
+      id: videoIds,
+    });
+
+    // Converter para formato ViralVideo
+    const videos: ViralVideo[] = (videosResponse.data.items || []).map((item, index) => {
+      const snippet = item.snippet;
+      const statistics = item.statistics;
+      const contentDetails = item.contentDetails;
+
+      const views = parseInt(statistics?.viewCount || '0');
+      const likes = parseInt(statistics?.likeCount || '0');
+      const comments = parseInt(statistics?.commentCount || '0');
+      const publishedAt = snippet?.publishedAt ? new Date(snippet.publishedAt) : new Date();
+      const hoursSincePublished = (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60);
+      const daysSincePublished = hoursSincePublished / 24;
+      const likesPerDay = daysSincePublished > 0 ? likes / daysSincePublished : likes;
+      const engagement = views > 0 ? ((likes + comments) / views) * 100 : 0;
+      const timeBoost = hoursSincePublished < 24 ? 1.5 : hoursSincePublished < 168 ? 1.2 : 1;
+      const viralScore = ((views * 0.4) + (likes * 0.3) + (comments * 0.2) + (engagement * 0.1)) * timeBoost;
+
+      return {
+        id: item.id || '',
+        title: snippet?.title || 'Sem título',
+        description: snippet?.description || '',
+        thumbnail: snippet?.thumbnails?.high?.url || snippet?.thumbnails?.default?.url || '',
+        channelTitle: snippet?.channelTitle || 'Canal desconhecido',
+        channelId: snippet?.channelId || '',
+        publishedAt: snippet?.publishedAt || new Date().toISOString(),
+        viewCount: views,
+        likeCount: likes,
+        commentCount: comments,
+        duration: contentDetails?.duration || 'PT0S',
+        url: `https://www.youtube.com/watch?v=${item.id}`,
+        platform: 'youtube' as const,
+        viralScore: Math.round(viralScore),
+        trendingRank: index + 1,
+        daysSincePublished: Math.round(daysSincePublished * 10) / 10,
+        likesPerDay: Math.round(likesPerDay),
+      };
+    });
+
+    // Aplicar filtros
+    let filteredVideos = [...videos];
+
+    // Filtrar Shorts
+    if (shortsOnly) {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => {
+        const durationSeconds = parseDurationToSeconds(video.duration);
+        return durationSeconds > 0 && durationSeconds <= 60;
+      });
+      console.log(`Filtro de Shorts: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Filtrar por curtidas
+    if (minLikes > 0) {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => video.likeCount >= minLikes);
+      console.log(`Filtro de curtidas: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Filtrar por data
+    if (maxDaysAgo > 0) {
+      const before = filteredVideos.length;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - maxDaysAgo);
+      cutoffDate.setHours(0, 0, 0, 0);
+      filteredVideos = filteredVideos.filter(video => {
+        const publishedDate = new Date(video.publishedAt);
+        publishedDate.setHours(0, 0, 0, 0);
+        return publishedDate >= cutoffDate;
+      });
+      console.log(`Filtro de data: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Filtrar por crescimento
+    if (minLikesPerDay > 0) {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => {
+        const likesPerDay = (video as any).likesPerDay || 0;
+        return likesPerDay >= minLikesPerDay;
+      });
+      console.log(`Filtro de crescimento: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Ordenar
+    switch (sortBy) {
+      case 'likes':
+        filteredVideos.sort((a, b) => b.likeCount - a.likeCount);
+        break;
+      case 'views':
+        filteredVideos.sort((a, b) => b.viewCount - a.viewCount);
+        break;
+      case 'comments':
+        filteredVideos.sort((a, b) => b.commentCount - a.commentCount);
+        break;
+      case 'recent':
+        filteredVideos.sort((a, b) => {
+          return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+        });
+        break;
+      case 'growth':
+        filteredVideos.sort((a, b) => {
+          const growthA = (a as any).likesPerDay || 0;
+          const growthB = (b as any).likesPerDay || 0;
+          return growthB - growthA;
+        });
+        break;
+      case 'viralScore':
+      default:
+        filteredVideos.sort((a, b) => b.viralScore - a.viralScore);
+        break;
+    }
+
+    const finalVideos = filteredVideos.slice(0, maxResults);
+    console.log(`✅ Busca por palavras-chave: ${finalVideos.length} vídeos finais (de ${videos.length} encontrados)`);
+    return finalVideos;
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar vídeos por palavras-chave:', error);
+    return [];
+  }
+}
+
 // Função auxiliar para buscar dados do YouTube (retorna array)
 async function getYouTubeVideosData(
   regionParam: string | string[],
@@ -198,7 +397,8 @@ async function getYouTubeVideosData(
   maxDaysAgo: number,
   minLikesPerDay: number,
   sortBy: string,
-  shortsOnly: boolean = false
+  shortsOnly: boolean = false,
+  productCategory: string = 'all'
 ): Promise<ViralVideo[]> {
   try {
     const apiKey = process.env.YOUTUBE_API_KEY;
@@ -223,18 +423,38 @@ async function getYouTubeVideosData(
     // Determinar regiões para buscar
     let regionsToSearch: string[];
     if (Array.isArray(regionParam)) {
-      regionsToSearch = regionParam;
-    } else if (regionParam === 'ALL_AMERICAS') {
+      // Se array vazio, usar todas as regiões
+      regionsToSearch = regionParam.length === 0 ? americasRegions : regionParam;
+    } else if (regionParam === 'ALL_AMERICAS' || !regionParam || regionParam === '') {
       regionsToSearch = americasRegions;
     } else if (regionParam.includes(',')) {
       // Se for string com vírgulas, dividir
-      regionsToSearch = regionParam.split(',').map(r => r.trim());
+      const parsed = regionParam.split(',').map(r => r.trim()).filter(r => r.length > 0);
+      regionsToSearch = parsed.length === 0 ? americasRegions : parsed;
     } else {
       regionsToSearch = [regionParam];
     }
     
+    // Se houver filtro de categoria de produto, fazer busca por palavras-chave ao invés de trending
+    if (productCategory && productCategory !== 'all') {
+      return await searchYouTubeByKeywords(
+        productCategory,
+        regionParam,
+        maxResults,
+        minLikes,
+        maxDaysAgo,
+        minLikesPerDay,
+        sortBy,
+        shortsOnly,
+        apiKey
+      );
+    }
+    
     // Se houver filtro de curtidas, buscar mais vídeos para ter mais opções
-    const searchLimit = minLikes > 0 ? Math.max(maxResults * 3, 100) : maxResults;
+    let searchLimit = maxResults;
+    if (minLikes > 0) {
+      searchLimit = Math.max(maxResults * 3, 100);
+    }
     
     // Buscar vídeos de todas as regiões selecionadas
     const allVideos: any[] = [];
@@ -386,6 +606,30 @@ async function getYouTubeVideosData(
       });
       console.log(`Filtro de crescimento: ${before} → ${filteredVideos.length} vídeos (${minLikesPerDay}+ curtidas/dia)`);
     }
+    
+    // 4. Filtrar por categoria de produto
+    if (productCategory && productCategory !== 'all') {
+      const before = filteredVideos.length;
+      const category = getCategoryById(productCategory);
+      console.log(`🔍 Aplicando filtro de categoria: ${category?.name || productCategory}`);
+      console.log(`📝 Palavras-chave: ${category?.keywords.slice(0, 5).join(', ')}...`);
+      
+      filteredVideos = filteredVideos.filter(video => matchesCategory(video, productCategory));
+      
+      console.log(`✅ Filtro de categoria de produto: ${before} → ${filteredVideos.length} vídeos`);
+      
+      // Log de exemplo de vídeos que não passaram no filtro (para debug)
+      if (filteredVideos.length === 0 && before > 0) {
+        // Encontrar um vídeo que não passou no filtro
+        const rejectedVideo = videos.find(video => !matchesCategory(video, productCategory));
+        if (rejectedVideo) {
+          console.log(`⚠️ Exemplo de vídeo que não passou no filtro:`, {
+            title: rejectedVideo.title?.substring(0, 50),
+            description: rejectedVideo.description?.substring(0, 100)
+          });
+        }
+      }
+    }
 
     // Ordenar conforme solicitado
     switch (sortBy) {
@@ -444,11 +688,12 @@ async function getYouTubeVideos(
   maxDaysAgo: number,
   minLikesPerDay: number,
   sortBy: string,
-  shortsOnly: boolean = false
+  shortsOnly: boolean = false,
+  productCategory: string = 'all'
 ) {
   try {
-    const finalVideos = await getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly);
-    const allVideos = await getYouTubeVideosData(regionParam, maxResults * 3, category, 0, 0, 0, sortBy, shortsOnly);
+    const finalVideos = await getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory);
+    const allVideos = await getYouTubeVideosData(regionParam, maxResults * 3, category, 0, 0, 0, sortBy, shortsOnly, productCategory);
 
     return NextResponse.json({ 
       videos: finalVideos,

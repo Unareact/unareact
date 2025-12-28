@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
 import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight } from 'lucide-react';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
+import { PRODUCT_CATEGORIES } from '@/app/lib/product-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
@@ -22,6 +23,7 @@ interface LastSearch {
   maxDaysAgo: number;
   minLikesPerDay: number;
   category: string;
+  productCategory: string;
   sortBy: string;
   videos: ViralVideo[];
   stats: { total: number; filtered: boolean; regions: string };
@@ -52,6 +54,7 @@ export function ViralVideoList() {
   const [maxDaysAgo, setMaxDaysAgo] = useState(lastSearch?.maxDaysAgo || 0);
   const [minLikesPerDay, setMinLikesPerDay] = useState(lastSearch?.minLikesPerDay || 0);
   const [category, setCategory] = useState(lastSearch?.category || '0');
+  const [productCategory, setProductCategory] = useState(lastSearch?.productCategory || 'all');
   const [shortsOnly, setShortsOnly] = useState(false);
   const [sortBy, setSortBy] = useState(lastSearch?.sortBy || 'views');
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +63,7 @@ export function ViralVideoList() {
   const [videoUrl, setVideoUrl] = useState('');
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
   const [urlDiagnosis, setUrlDiagnosis] = useState<any>(null);
-  const { addClip, setActivePanel } = useEditorStore();
+  const { addClip, setActivePanel, setPendingDownloadUrl } = useEditorStore();
 
   // Salvar pesquisa no localStorage
   const saveLastSearch = (searchData: Partial<LastSearch>) => {
@@ -84,6 +87,7 @@ export function ViralVideoList() {
         maxDaysAgo: maxDaysAgo.toString(),
         minLikesPerDay: minLikesPerDay.toString(),
         sortBy: sortBy,
+        productCategory: productCategory,
       });
       
       // Região, categoria e shorts apenas para YouTube
@@ -148,6 +152,7 @@ export function ViralVideoList() {
         maxDaysAgo,
         minLikesPerDay,
         category,
+        productCategory,
         sortBy,
         videos: videosData,
         stats: statsData,
@@ -167,71 +172,18 @@ export function ViralVideoList() {
     } finally {
       setLoading(false);
     }
-  }, [platform, region, minLikes, maxDaysAgo, minLikesPerDay, category, sortBy]);
+  }, [platform, region, minLikes, maxDaysAgo, minLikesPerDay, category, productCategory, sortBy]);
 
   // Buscar apenas quando filtros principais mudam (não a cada digitação nos inputs numéricos)
   useEffect(() => {
     fetchViralVideos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platform, region, category, sortBy]); // Removido minLikes, maxDaysAgo, minLikesPerDay - só busca quando clicar em "Buscar"
+  }, [platform, region, category, productCategory, sortBy]); // Removido minLikes, maxDaysAgo, minLikesPerDay - só busca quando clicar em "Buscar"
 
-  const handleDownload = async (video: ViralVideo) => {
-    try {
-      const response = await fetch('/api/viral/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          videoUrl: video.url,
-          platform: video.platform 
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao fazer download');
-      }
-      
-      if (data.success) {
-        // Adicionar à timeline como clip
-        addClip({
-          id: `viral-${video.id}-${Date.now()}`,
-          startTime: 0,
-          endTime: parseDuration(video.duration),
-          source: video.url,
-          type: 'video',
-        });
-        
-        alert(`Vídeo "${video.title}" adicionado à timeline!`);
-      } else {
-        // Mensagem de erro mais detalhada
-        let errorMessage = data.error || 'Erro desconhecido';
-        if (data.installInstructions) {
-          errorMessage += `\n\nPara instalar yt-dlp:\n${data.installInstructions.current || data.installInstructions.macOS || 'pip install yt-dlp'}`;
-        }
-        alert('Erro ao fazer download: ' + errorMessage);
-      }
-    } catch (err: any) {
-      console.error('Erro ao fazer download:', err);
-      let errorMessage = err.message || 'Erro desconhecido';
-      
-      // Tentar extrair mensagem de erro do response se disponível
-      if (err.response) {
-        try {
-          const errorData = await err.response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-            if (errorData.installInstructions) {
-              errorMessage += `\n\nPara instalar yt-dlp:\n${errorData.installInstructions.current || errorData.installInstructions.macOS || 'pip install yt-dlp'}`;
-            }
-          }
-        } catch {
-          // Ignorar se não conseguir parsear
-        }
-      }
-      
-      alert('Erro ao fazer download: ' + errorMessage);
-    }
+  const handleDownload = (video: ViralVideo) => {
+    // Preencher URL e mudar para aba Download
+    setPendingDownloadUrl(video.url);
+    setActivePanel('download');
   };
 
   const parseDuration = (duration: string): number => {
@@ -372,6 +324,7 @@ export function ViralVideoList() {
         maxDaysAgo: 0,
         minLikesPerDay: 0,
         category: '0',
+        productCategory: productCategory,
         sortBy: 'viralScore',
         videos: similarData.videos || [],
         stats: {
@@ -503,6 +456,26 @@ export function ViralVideoList() {
               </select>
             </div>
           )}
+          
+          {/* Categoria de Produto - Para todas as plataformas */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+              <Filter className="w-4 h-4 text-green-500" />
+              Categoria de Produto
+            </label>
+            <select
+              value={productCategory}
+              onChange={(e) => setProductCategory(e.target.value)}
+              title={PRODUCT_CATEGORIES.find(cat => cat.id === productCategory)?.description || ''}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+            >
+              {PRODUCT_CATEGORIES.map((cat) => (
+                <option key={cat.id} value={cat.id} title={cat.description}>
+                  {cat.emoji} {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
           
           {/* YouTube Shorts - Apenas para YouTube */}
           {(platform === 'youtube' || platform === 'all') && (
@@ -828,16 +801,7 @@ export function ViralVideoList() {
                   </a>
                 </div>
                 <button
-                  onClick={() => {
-                    addClip({
-                      id: `clip-${video.id}-${Date.now()}`,
-                      startTime: 0,
-                      endTime: parseDuration(video.duration),
-                      source: video.url,
-                      type: 'video',
-                    });
-                    setActivePanel('download');
-                  }}
+                  onClick={() => handleDownload(video)}
                   className="w-full flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 text-xs sm:text-sm font-medium transition-colors"
                   title="Baixar este vídeo para editar"
                 >

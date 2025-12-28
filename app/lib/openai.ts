@@ -44,6 +44,70 @@ PRINCÍPIOS DE ROTEIROS EFICAZES:
 4. Call to action claro no final
 5. Tom apropriado para o nicho ${nicheConfig.name}`;
 
+  // Descrições detalhadas de cada estilo
+  const styleInstructions: Record<ScriptGenerationParams['style'], string> = {
+    educational: `ESTILO EDUCACIONAL - Instruções Específicas:
+- Foco em ENSINAR e EXPLICAR conceitos claramente
+- Use exemplos práticos e analogias
+- Estruture: Problema → Solução → Aplicação
+- Use linguagem didática mas acessível
+- Inclua "como fazer" e "passo a passo"
+- Termine com resumo ou principais pontos aprendidos
+- Evite jargões complexos sem explicar`,
+    
+    entertaining: `ESTILO ENTERTENIMENTO - Instruções Específicas:
+- Foco em DIVERTIR e ENGAJAR emocionalmente
+- Use humor, surpresas e momentos "wow"
+- Estruture: Hook impactante → Desenvolvimento divertido → Clímax emocional
+- Use linguagem descontraída e expressiva
+- Inclua elementos visuais descritivos (para edição)
+- Termine com momento memorável ou piada
+- Mantenha energia alta e ritmo rápido`,
+    
+    promotional: `ESTILO PROMOCIONAL - Instruções Específicas:
+- Foco em VENDER e CRIAR DESEJO
+- Use gatilhos mentais: escassez, autoridade, prova social
+- Estruture: Problema/Dor → Solução/Benefício → Prova → CTA
+- Use linguagem persuasiva e que desperte desejo
+- Inclua benefícios específicos e transformações
+- Termine com call-to-action claro e urgente
+- Use números, resultados e depoimentos quando possível`,
+    
+    documentary: `ESTILO DOCUMENTÁRIO - Instruções Específicas:
+- Foco em CONTAR HISTÓRIA REAL e INFORMAR
+- Use narrativa cronológica ou temática
+- Estruture: Contexto → Desenvolvimento → Revelação/Conclusão
+- Use linguagem autêntica e respeitosa
+- Inclua fatos, dados e contexto histórico
+- Termine com reflexão ou mensagem final
+- Mantenha tom sério mas envolvente`,
+  };
+
+  // Descrições detalhadas de cada tom
+  const toneInstructions: Record<ScriptGenerationParams['tone'], string> = {
+    casual: `TOM CASUAL:
+- Linguagem: Conversacional, como falar com um amigo
+- Pronomes: Use "você", "a gente", "nós"
+- Contração: Pode usar "pra", "pro", "tá"
+- Exemplos: "Você já parou pra pensar...", "A gente sempre...", "Olha só que interessante..."`,
+    
+    formal: `TOM FORMAL:
+- Linguagem: Profissional e respeitosa
+- Pronomes: Use "você" ou "o(a) senhor(a)"
+- Evite: Gírias e contrações excessivas
+- Exemplos: "É importante considerar...", "Recomendamos que...", "De acordo com estudos..."`,
+    
+    energetic: `TOM ENERGÉTICO:
+- Linguagem: Animada, com exclamações e entusiasmo
+- Ritmo: Frases curtas e dinâmicas
+- Exemplos: "Incrível!", "Olha só isso!", "Você não vai acreditar!", "É isso aí!"`,
+    
+    calm: `TOM CALMO:
+- Linguagem: Tranquila e serena
+- Ritmo: Mais pausado e reflexivo
+- Exemplos: "Vamos pensar juntos...", "Deixe-me compartilhar...", "É interessante observar..."`,
+  };
+
   let prompt = `Crie um ROTEIRO DE VÍDEO VIRAL otimizado para máximo engajamento e compartilhamento.
 
 ═══════════════════════════════════════════════════════════════
@@ -52,8 +116,12 @@ PRINCÍPIOS DE ROTEIROS EFICAZES:
 🎬 Tópico: "${params.topic}"
 🎯 Nicho Detectado: ${nicheConfig.name}
 ⏱️ Duração: ${params.duration} segundos (CRÍTICO: respeitar exatamente)
-🎨 Estilo: ${params.style}
-🎭 Tom: ${params.tone}
+
+═══════════════════════════════════════════════════════════════
+🎨 ${styleInstructions[params.style]}
+
+═══════════════════════════════════════════════════════════════
+🎭 ${toneInstructions[params.tone]}
 
 ═══════════════════════════════════════════════════════════════
 🎯 CONFIGURAÇÕES ESPECÍFICAS DO NICHO "${nicheConfig.name}":
@@ -147,7 +215,17 @@ ${viralFactors.callToAction}
    - Adapte para o tópico mas mantenha a estratégia
    - Coloque nos últimos 5-10 segundos
 
-IMPORTANTE: Este roteiro deve REPLICAR os padrões virais identificados, adaptando-os para "${params.topic}". Não seja genérico - seja ESPECÍFICO e use os padrões exatos que funcionaram.`;
+═══════════════════════════════════════════════════════════════
+⚠️ PRIORIDADE: Combine ESTILO "${params.style}" + TOM "${params.tone}" + Padrões Virais
+═══════════════════════════════════════════════════════════════
+
+IMPORTANTE: 
+- REPLIQUE os padrões virais identificados
+- MAS siga RIGOROSAMENTE o ESTILO "${params.style}": ${styleInstructions[params.style].split('\n')[0]}
+- E use o TOM "${params.tone}" em TODO o roteiro: ${toneInstructions[params.tone].split('\n')[0]}
+- Combine ambos: padrões virais + estilo/tom escolhidos
+- Não seja genérico - seja ESPECÍFICO e use os padrões exatos que funcionaram
+- Adapte para o tópico "${params.topic}" mantendo estilo, tom e padrões virais`;
   } else {
     prompt += `
 
@@ -162,12 +240,16 @@ SEGMENTO 1 - HOOK (3-5 segundos):
 ${nicheConfig.hookExamples.map(e => `  • ${e}`).join('\n')}
 - Crie "curiosidade gap" - faça o espectador querer saber mais
 - Use linguagem específica do nicho ${nicheConfig.name}
+- APLIQUE o ESTILO ${params.style}: ${styleInstructions[params.style].split('\n')[0]}
+- Use o TOM ${params.tone}: ${toneInstructions[params.tone].split('\n')[0]}
 - ${nicheConfig.languageStyle}
 
 SEGMENTO 2 - SETUP/CONTEXTO (10-15% do vídeo):
 - Estabeleça o contexto rapidamente usando técnicas do nicho
 - Conecte com a experiência do público-alvo deste nicho
 - Use exemplos específicos e concretos relevantes para ${nicheConfig.name}
+- Mantenha ESTILO ${params.style}: ${styleInstructions[params.style].split('\n')[1]}
+- Use TOM ${params.tone} consistentemente: ${toneInstructions[params.tone].split('\n')[0]}
 
 SEGMENTO 3 - DESENVOLVIMENTO (60-70% do vídeo):
 - Aplique as técnicas-chave do nicho:
@@ -185,8 +267,16 @@ SEGMENTO 4 - CLÍMAX/INSIGHT (10-15% do vídeo):
 
 SEGMENTO 5 - CTA/CONCLUSÃO (5-10 segundos):
 - ${nicheConfig.ctaStyle}
+- ${styleInstructions[params.style].split('\n').find(l => l.includes('Termine')) || 'Termine com CTA claro'}
+- Use TOM ${params.tone} no CTA: ${toneInstructions[params.tone].split('\n')[0]}
 - Reforce o valor principal para o nicho ${nicheConfig.name}
-- Deixe o espectador querendo mais`;
+- Deixe o espectador querendo mais
+
+═══════════════════════════════════════════════════════════════
+⚠️ LEMBRE-SE: Todo o roteiro deve seguir:
+- ESTILO: ${params.style} - ${styleInstructions[params.style].split('\n')[0]}
+- TOM: ${params.tone} - ${toneInstructions[params.tone].split('\n')[0]}
+- NICHО: ${nicheConfig.name} - ${nicheConfig.languageStyle}`;
   }
 
   prompt += `
@@ -278,14 +368,50 @@ IMPORTANTE:
       }
     }
 
-    // Garantir formato correto
-    return segments.map((seg: any, index: number) => ({
-      id: seg.id || `seg-${Date.now()}-${index}`,
-      text: seg.text || seg.content || '',
-      duration: seg.duration || 5,
-      timestamp: seg.timestamp || segments.slice(0, index).reduce((acc: number, s: any) => acc + (s.duration || 5), 0),
-      type: seg.type || 'content',
-    })) as ScriptSegment[];
+    // Garantir formato correto e validar
+    const formattedSegments = segments.map((seg: any, index: number) => {
+      const text = seg.text || seg.content || seg.description || '';
+      
+      // Validar que o texto não está vazio ou genérico
+      if (!text || text.length < 10) {
+        console.warn(`Segmento ${index} tem texto muito curto ou vazio:`, text);
+      }
+      
+      return {
+        id: seg.id || `seg-${Date.now()}-${index}`,
+        text: text || `[Segmento ${index + 1} - Edite este texto]`,
+        duration: Math.max(3, Math.min(seg.duration || 5, 30)), // Entre 3 e 30 segundos
+        timestamp: seg.timestamp !== undefined 
+          ? seg.timestamp 
+          : segments.slice(0, index).reduce((acc: number, s: any) => acc + Math.max(3, Math.min(s.duration || 5, 30)), 0),
+        type: seg.type || (index === 0 ? 'intro' : index === segments.length - 1 ? 'outro' : 'content'),
+      };
+    }) as ScriptSegment[];
+
+    // Validar duração total
+    const totalDuration = formattedSegments.reduce((sum, seg) => sum + seg.duration, 0);
+    const durationDiff = Math.abs(totalDuration - params.duration);
+    
+    if (durationDiff > 5) {
+      console.warn(`⚠️ Duração total (${totalDuration}s) difere da solicitada (${params.duration}s) em ${durationDiff}s`);
+      
+      // Ajustar proporcionalmente se a diferença for grande
+      if (durationDiff > 10) {
+        const scale = params.duration / totalDuration;
+        formattedSegments.forEach(seg => {
+          seg.duration = Math.round(seg.duration * scale);
+        });
+        
+        // Recalcular timestamps
+        let currentTime = 0;
+        formattedSegments.forEach(seg => {
+          seg.timestamp = currentTime;
+          currentTime += seg.duration;
+        });
+      }
+    }
+
+    return formattedSegments;
   } catch (error) {
     console.error('Erro ao gerar roteiro:', error);
     throw error;

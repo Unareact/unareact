@@ -62,7 +62,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Comando yt-dlp
-    const command = `${ytDlpCommand} "${videoUrl}" -f "${quality}" -o "${outputPath}" --no-playlist --extract-flat false`;
+    // Construir formato baseado na qualidade selecionada
+    let formatFilter = 'best[ext=mp4]/best';
+    if (quality === '720p') {
+      formatFilter = 'best[height<=720][ext=mp4]/best[height<=720]';
+    } else if (quality === '480p') {
+      formatFilter = 'best[height<=480][ext=mp4]/best[height<=480]';
+    } else if (quality === '360p') {
+      formatFilter = 'best[height<=360][ext=mp4]/best[height<=360]';
+    } else if (quality === 'worst') {
+      formatFilter = 'worst[ext=mp4]/worst';
+    }
+    
+    const command = `${ytDlpCommand} "${videoUrl}" -f "${formatFilter}" -o "${outputPath}" --no-playlist`;
 
     console.log('Iniciando download:', videoUrl);
     

@@ -19,8 +19,9 @@ interface EditorState {
   currentViralDiagnosis: ViralDiagnosis | null;
   
   // UI
-  activePanel: 'script' | 'editor' | 'preview' | 'viral' | 'download';
+  activePanel: 'script' | 'editor' | 'preview' | 'viral' | 'download' | 'my-downloads';
   selectedClipId: string | null;
+  pendingDownloadUrl: string | null; // URL do vídeo para download
   
   // Actions
   setCurrentProject: (project: Project | null) => void;
@@ -36,10 +37,11 @@ interface EditorState {
   setCurrentTime: (time: number) => void;
   setIsPlaying: (playing: boolean) => void;
   setDuration: (duration: number) => void;
-  setActivePanel: (panel: 'script' | 'editor' | 'preview' | 'viral' | 'download') => void;
+  setActivePanel: (panel: 'script' | 'editor' | 'preview' | 'viral' | 'download' | 'my-downloads') => void;
   setSelectedClipId: (id: string | null) => void;
   setIsGeneratingScript: (generating: boolean) => void;
   setCurrentViralDiagnosis: (diagnosis: ViralDiagnosis | null) => void;
+  setPendingDownloadUrl: (url: string | null) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -54,6 +56,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   selectedClipId: null,
   isGeneratingScript: false,
   currentViralDiagnosis: null,
+  pendingDownloadUrl: null,
   
   // Actions
   setCurrentProject: (project) => set({ currentProject: project }),
@@ -101,5 +104,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSelectedClipId: (id) => set({ selectedClipId: id }),
   setIsGeneratingScript: (generating) => set({ isGeneratingScript: generating }),
   setCurrentViralDiagnosis: (diagnosis) => set({ currentViralDiagnosis: diagnosis }),
+  setPendingDownloadUrl: (url) => set({ pendingDownloadUrl: url }),
 }));
 

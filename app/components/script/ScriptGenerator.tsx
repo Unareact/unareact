@@ -7,6 +7,50 @@ import { ScriptGenerationParams } from '@/app/types';
 import { Sparkles, Loader2, TrendingUp, Info } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
+const STYLE_DESCRIPTIONS: Record<ScriptGenerationParams['style'], string> = {
+  educational: '📚 Para ensinar, explicar conceitos, tutoriais e conteúdo educativo. Foco em clareza e aprendizado.',
+  entertaining: '🎭 Para entreter, divertir, reações, humor e conteúdo leve. Foco em engajamento e diversão.',
+  promotional: '💼 Para vender, promover produtos, serviços e criar desejo. Foco em conversão e persuasão.',
+  documentary: '🎬 Para documentar, contar histórias reais, investigar e informar. Foco em autenticidade e profundidade.',
+};
+
+const STYLE_TOOLTIPS: Record<ScriptGenerationParams['style'], string> = {
+  educational: 'Educacional: para tutoriais, explicações',
+  entertaining: 'Entretenimento: para conteúdo divertido',
+  promotional: 'Promocional: para vendas, produtos',
+  documentary: 'Documentário: para histórias reais',
+};
+
+const TONE_DESCRIPTIONS: Record<ScriptGenerationParams['tone'], string> = {
+  casual: 'Conversacional e descontraído, como falar com um amigo',
+  formal: 'Profissional e respeitoso, adequado para audiências corporativas',
+  energetic: 'Animado e dinâmico, com alta energia e entusiasmo',
+  calm: 'Tranquilo e sereno, ideal para conteúdo relaxante ou meditativo',
+};
+
+const TONE_TOOLTIPS: Record<ScriptGenerationParams['tone'], string> = {
+  casual: 'Casual: conversa descontraída',
+  formal: 'Formal: profissional',
+  energetic: 'Energético: animado',
+  calm: 'Calmo: tranquilo',
+};
+
+function getStyleDescription(style: ScriptGenerationParams['style']): string {
+  return STYLE_DESCRIPTIONS[style] || '';
+}
+
+function getStyleTooltip(style: ScriptGenerationParams['style']): string {
+  return STYLE_TOOLTIPS[style] || '';
+}
+
+function getToneDescription(tone: ScriptGenerationParams['tone']): string {
+  return TONE_DESCRIPTIONS[tone] || '';
+}
+
+function getToneTooltip(tone: ScriptGenerationParams['tone']): string {
+  return TONE_TOOLTIPS[tone] || '';
+}
+
 export function ScriptGenerator() {
   const { setIsGeneratingScript, setScript, isGeneratingScript, currentViralDiagnosis } = useEditorStore();
   const [topic, setTopic] = useState('');
@@ -130,14 +174,18 @@ export function ScriptGenerator() {
             <select
               value={style}
               onChange={(e) => setStyle(e.target.value as ScriptGenerationParams['style'])}
+              title={getStyleTooltip(style)}
               className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               disabled={isGeneratingScript}
             >
-              <option value="educational">Educacional</option>
-              <option value="entertaining">Entretenimento</option>
-              <option value="promotional">Promocional</option>
-              <option value="documentary">Documentário</option>
+              <option value="educational" title="Educacional: para tutoriais, explicações">📚 Educacional</option>
+              <option value="entertaining" title="Entretenimento: para conteúdo divertido">🎭 Entretenimento</option>
+              <option value="promotional" title="Promocional: para vendas, produtos">💼 Promocional</option>
+              <option value="documentary" title="Documentário: para histórias reais">🎬 Documentário</option>
             </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {getStyleDescription(style)}
+            </p>
           </div>
         </div>
 
@@ -148,14 +196,18 @@ export function ScriptGenerator() {
           <select
             value={tone}
             onChange={(e) => setTone(e.target.value as ScriptGenerationParams['tone'])}
+            title={getToneTooltip(tone)}
             className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             disabled={isGeneratingScript}
           >
-            <option value="casual">Casual</option>
-            <option value="formal">Formal</option>
-            <option value="energetic">Energético</option>
-            <option value="calm">Calmo</option>
+            <option value="casual" title="Casual: conversa descontraída">💬 Casual</option>
+            <option value="formal" title="Formal: profissional">👔 Formal</option>
+            <option value="energetic" title="Energético: animado">⚡ Energético</option>
+            <option value="calm" title="Calmo: tranquilo">🧘 Calmo</option>
           </select>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {getToneDescription(tone)}
+          </p>
         </div>
 
         <button

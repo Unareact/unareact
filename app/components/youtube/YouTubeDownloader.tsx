@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { Download, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Download, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, Scissors, ArrowRight } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
+import { useEditorStore } from '@/app/stores/editor-store';
 
 export function YouTubeDownloader() {
+  const { pendingDownloadUrl, setPendingDownloadUrl, setActivePanel, addClip } = useEditorStore();
   const [videoUrl, setVideoUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -12,6 +14,14 @@ export function YouTubeDownloader() {
   const [videoInfo, setVideoInfo] = useState<any>(null);
   const [format, setFormat] = useState('mp4');
   const [quality, setQuality] = useState('best');
+
+  // Preencher URL quando vier da lista de virais
+  useEffect(() => {
+    if (pendingDownloadUrl) {
+      setVideoUrl(pendingDownloadUrl);
+      setPendingDownloadUrl(null); // Limpar após usar
+    }
+  }, [pendingDownloadUrl, setPendingDownloadUrl]);
 
   const getVideoInfo = async () => {
     if (!videoUrl.trim()) {
@@ -72,10 +82,63 @@ export function YouTubeDownloader() {
       }
 
       setSuccess(data);
+      
+      // Salvar download no Supabase
+      try {
+        await fetch('/api/downloads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            video_url: videoUrl,
+            video_id: data.videoId || videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1] || 'unknown',
+            platform: 'youtube',
+            title: videoInfo?.title || null,
+            filename: data.filename,
+            file_size: data.size,
+            file_path: data.path,
+            storage_url: null, // Em produção, você faria upload para Supabase Storage
+            format: format,
+            quality: quality,
+            duration: videoInfo?.duration || null,
+          }),
+        });
+      } catch (err) {
+        console.error('Erro ao salvar download no Supabase:', err);
+        // Não bloquear o fluxo se falhar ao salvar
+      }
+      
+      // Redirecionar automaticamente para o editor após 2 segundos
+      setTimeout(() => {
+        setActivePanel('editor');
+      }, 2000);
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer download');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoToEditor = () => {
+    setActivePanel('editor');
+  };
+
+  const handleAddToTimeline = () => {
+    if (success) {
+      // Adicionar vídeo à timeline usando o caminho do arquivo
+      // Nota: Em produção, você precisaria servir o arquivo via API ou usar cloud storage
+      // Por enquanto, usamos a URL original para referência
+      const duration = videoInfo?.duration || 60; // Usar duração do vídeo se disponível, senão 60s padrão
+      
+      addClip({
+        id: `download-${Date.now()}`,
+        startTime: 0,
+        endTime: duration,
+        source: videoUrl || success.path, // Usar URL original ou caminho do arquivo
+        type: 'video',
+      });
+      
+      // Ir para o editor
+      setActivePanel('editor');
     }
   };
 
@@ -252,22 +315,45 @@ export function YouTubeDownloader() {
 
       {/* Sucesso */}
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 space-y-3">
           <div className="flex items-start gap-2">
             <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-green-800 dark:text-green-300 mb-1">
-                Download Concluído!
+                ✅ Download Concluído!
               </p>
               <div className="text-sm text-green-700 dark:text-green-400 space-y-1">
-                <p>Arquivo: {success.filename}</p>
-                <p>Tamanho: {formatFileSize(success.size)}</p>
-                <p className="text-xs mt-2">
-                  Local: {success.path}
+                <p><strong>Arquivo:</strong> {success.filename}</p>
+                <p><strong>Tamanho:</strong> {formatFileSize(success.size)}</p>
+                <p className="text-xs mt-2 text-green-600 dark:text-green-500">
+                  📁 Local: {success.path}
                 </p>
               </div>
             </div>
           </div>
+          
+          {/* Botões de ação */}
+          <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-green-200 dark:border-green-800">
+            <button
+              onClick={handleGoToEditor}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm transition-colors"
+            >
+              <Scissors className="w-4 h-4" />
+              Ir para Editor
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleAddToTimeline}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Adicionar à Timeline
+            </button>
+          </div>
+          
+          <p className="text-xs text-green-600 dark:text-green-500 text-center">
+            💡 Você será redirecionado para o Editor em alguns segundos...
+          </p>
         </div>
       )}
 

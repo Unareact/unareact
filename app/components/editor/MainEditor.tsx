@@ -13,6 +13,7 @@ import { ViralVideoList } from '../viral/ViralVideoList';
 import { YouTubeDownloader } from '../youtube/YouTubeDownloader';
 import { FileUploader } from '../upload/FileUploader';
 import { WorkflowGuide } from '../workflow/WorkflowGuide';
+import { DownloadsList } from '../downloads/DownloadsList';
 
 export function MainEditor() {
   const { activePanel, setActivePanel } = useEditorStore();
@@ -24,6 +25,7 @@ export function MainEditor() {
     { id: 'editor' as const, label: 'Editor', icon: Scissors },
     { id: 'preview' as const, label: 'Preview', icon: Video },
     { id: 'download' as const, label: 'Download', icon: Download },
+    { id: 'my-downloads' as const, label: 'Meus Downloads', icon: Download },
   ];
 
   const handlePanelClick = (panelId: typeof activePanel) => {
@@ -122,6 +124,12 @@ export function MainEditor() {
         {activePanel === 'download' ? (
           <div className="col-span-12 overflow-y-auto">
             <YouTubeDownloader />
+          </div>
+        ) : activePanel === 'my-downloads' ? (
+          <div className="col-span-12 overflow-y-auto">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+              <DownloadsList />
+            </div>
           </div>
         ) : activePanel === 'viral' ? (
           <div className="col-span-12 overflow-y-auto">

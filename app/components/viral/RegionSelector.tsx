@@ -72,19 +72,22 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
       // Se estava "Toda América", desmarcar tudo e marcar apenas este
       onChange([code]);
     } else {
-      const current = Array.isArray(value) ? value : [];
+      const current = Array.isArray(value) ? value : (value === 'ALL_AMERICAS' ? [] : [value]);
       if (current.includes(code)) {
+        // Desmarcar país
         const newValue = current.filter(c => c !== code);
-        onChange(newValue.length === 0 ? 'ALL_AMERICAS' : newValue);
+        onChange(newValue.length === 0 ? [] : newValue);
       } else {
+        // Marcar país
         const newValue = [...current, code];
+        // Se selecionou todos, usar 'ALL_AMERICAS' para melhor performance
         onChange(newValue.length === ALL_CODES.length ? 'ALL_AMERICAS' : newValue);
       }
     }
   };
 
   const handleClear = () => {
-    onChange('ALL_AMERICAS');
+    onChange([]);
   };
 
   return (
@@ -99,7 +102,11 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
         className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm text-left flex items-center justify-between hover:border-purple-500 dark:hover:border-purple-500 transition-colors"
       >
         <span>
-          {isAllAmericas ? '🌎 Toda América' : `${selectedCount} país${selectedCount !== 1 ? 'es' : ''} selecionado${selectedCount !== 1 ? 's' : ''}`}
+          {isAllAmericas 
+            ? '🌎 Toda América' 
+            : selectedCount === 0 
+              ? 'Selecione países...' 
+              : `${selectedCount} país${selectedCount !== 1 ? 'es' : ''} selecionado${selectedCount !== 1 ? 's' : ''}`}
         </span>
         <span className="text-gray-400">▼</span>
       </button>
@@ -126,7 +133,7 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
                   <Check className={cn("w-4 h-4", isAllAmericas ? "opacity-100" : "opacity-0")} />
                   Toda América
                 </button>
-                {!isAllAmericas && selectedCount > 0 && (
+                {selectedCount > 0 && (
                   <button
                     type="button"
                     onClick={handleClear}
