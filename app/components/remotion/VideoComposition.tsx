@@ -135,7 +135,11 @@ export const VideoComposition: React.FC<VideoCompositionProps> = ({
                 }}
                 muted
                 playsInline
-                playbackRate={clip.speed || 1}
+                ref={(video) => {
+                  if (video && clip.speed) {
+                    video.playbackRate = clip.speed;
+                  }
+                }}
               />
             )}
             {clip.type === 'image' && (
