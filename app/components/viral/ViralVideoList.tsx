@@ -60,6 +60,7 @@ export function ViralVideoList() {
   const [videoUrl, setVideoUrl] = useState('');
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
   const [urlDiagnosis, setUrlDiagnosis] = useState<any>(null);
+  const [urlDiagnosis, setUrlDiagnosis] = useState<any>(null);
   const { addClip, setActivePanel } = useEditorStore();
 
   // Salvar pesquisa no localStorage
