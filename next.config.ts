@@ -12,13 +12,20 @@ const nextConfig: NextConfig = {
       };
     }
     
-    // Ignorar arquivos .d.ts (TypeScript declaration files) do esbuild
+    // Ignorar arquivos .d.ts (TypeScript declaration files) completamente
     config.plugins = config.plugins || [];
     config.plugins.push(
       new webpack.IgnorePlugin({
         resourceRegExp: /\.d\.ts$/,
-        contextRegExp: /node_modules\/esbuild/,
       })
+    );
+    
+    // Ignorar especificamente o esbuild/lib/main.d.ts
+    config.plugins.push(
+      new webpack.NormalModuleReplacementPlugin(
+        /esbuild\/lib\/main\.d\.ts$/,
+        require.resolve('./empty-module.js')
+      )
     );
     
     // Ignorar warnings de self-reference dependency do Remotion
