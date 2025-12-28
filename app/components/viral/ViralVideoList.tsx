@@ -7,6 +7,7 @@ import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
+import { RegionSelector } from './RegionSelector';
 // import { PlatformStatus } from './PlatformStatus';
 
 // Chave para localStorage
@@ -334,46 +335,10 @@ export function ViralVideoList() {
           
           {/* Região - Apenas para YouTube */}
           {(platform === 'youtube' || platform === 'all') && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                <Globe className="w-4 h-4" />
-                Região
-              </label>
-              <select
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-              >
-                <option value="ALL_AMERICAS">🌎 Toda América</option>
-                <optgroup label="América do Norte">
-                  <option value="US">Estados Unidos</option>
-                  <option value="CA">Canadá</option>
-                  <option value="MX">México</option>
-                </optgroup>
-                <optgroup label="América Central">
-                  <option value="GT">Guatemala</option>
-                  <option value="CU">Cuba</option>
-                  <option value="HT">Haiti</option>
-                  <option value="DO">República Dominicana</option>
-                  <option value="HN">Honduras</option>
-                  <option value="NI">Nicarágua</option>
-                  <option value="CR">Costa Rica</option>
-                  <option value="PA">Panamá</option>
-                </optgroup>
-                <optgroup label="América do Sul">
-                  <option value="BR">Brasil</option>
-                  <option value="AR">Argentina</option>
-                  <option value="CO">Colômbia</option>
-                  <option value="CL">Chile</option>
-                  <option value="PE">Peru</option>
-                  <option value="VE">Venezuela</option>
-                  <option value="EC">Equador</option>
-                  <option value="BO">Bolívia</option>
-                  <option value="PY">Paraguai</option>
-                  <option value="UY">Uruguai</option>
-                </optgroup>
-              </select>
-            </div>
+            <RegionSelector
+              value={region}
+              onChange={setRegion}
+            />
           )}
           
           {/* Categoria/Nicho - Apenas para YouTube */}
