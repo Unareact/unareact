@@ -233,7 +233,7 @@ async function getYouTubeVideosData(
           part: ['snippet', 'statistics', 'contentDetails'],
           chart: 'mostPopular',
           regionCode,
-          maxResults: regionParam === 'ALL_AMERICAS' ? Math.min(50, searchLimit) : searchLimit,
+          maxResults: regionsToSearch.length > 1 ? Math.min(50, searchLimit) : searchLimit,
         };
         
         // Só adicionar categoria se não for "0" (todas)

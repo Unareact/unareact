@@ -9,21 +9,62 @@ import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
 // import { PlatformStatus } from './PlatformStatus';
 
+// Chave para localStorage
+const LAST_SEARCH_KEY = 'una-last-viral-search';
+
+interface LastSearch {
+  platform: 'youtube' | 'tiktok' | 'all';
+  region: string | string[];
+  minLikes: number;
+  maxDaysAgo: number;
+  minLikesPerDay: number;
+  category: string;
+  sortBy: string;
+  videos: ViralVideo[];
+  stats: { total: number; filtered: boolean; regions: string };
+}
+
 export function ViralVideoList() {
-  const [videos, setVideos] = useState<ViralVideo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>('all'); // Plataforma: YouTube, TikTok ou Todas
-  const [region, setRegion] = useState('ALL_AMERICAS');
-  const [minLikes, setMinLikes] = useState(0); // Sem filtro por padrão
-  const [maxDaysAgo, setMaxDaysAgo] = useState(0);
-  const [minLikesPerDay, setMinLikesPerDay] = useState(0);
-  const [category, setCategory] = useState('0'); // Categoria/nicho (apenas YouTube)
-  const [shortsOnly, setShortsOnly] = useState(false); // Filtrar apenas YouTube Shorts
-  const [sortBy, setSortBy] = useState('views'); // Ordenação - padrão: mais views primeiro
+  // Carregar última pesquisa do localStorage
+  const loadLastSearch = (): Partial<LastSearch> | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem(LAST_SEARCH_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar última pesquisa:', e);
+    }
+    return null;
+  };
+
+  const lastSearch = loadLastSearch();
+
+  const [videos, setVideos] = useState<ViralVideo[]>(lastSearch?.videos || []);
+  const [loading, setLoading] = useState(!lastSearch?.videos); // Não carregar se tiver última pesquisa
+  const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>(lastSearch?.platform || 'all');
+  const [region, setRegion] = useState<string | string[]>(lastSearch?.region || 'ALL_AMERICAS');
+  const [minLikes, setMinLikes] = useState(lastSearch?.minLikes || 0);
+  const [maxDaysAgo, setMaxDaysAgo] = useState(lastSearch?.maxDaysAgo || 0);
+  const [minLikesPerDay, setMinLikesPerDay] = useState(lastSearch?.minLikesPerDay || 0);
+  const [category, setCategory] = useState(lastSearch?.category || '0');
+  const [shortsOnly, setShortsOnly] = useState(false);
+  const [sortBy, setSortBy] = useState(lastSearch?.sortBy || 'views');
   const [error, setError] = useState<string | null>(null);
   const [diagnosingVideo, setDiagnosingVideo] = useState<{ id: string; title: string } | null>(null);
-  const [stats, setStats] = useState<{ total: number; filtered: boolean; regions: string } | null>(null);
+  const [stats, setStats] = useState<{ total: number; filtered: boolean; regions: string } | null>(lastSearch?.stats || null);
   const { addClip, setActivePanel } = useEditorStore();
+
+  // Salvar pesquisa no localStorage
+  const saveLastSearch = (searchData: Partial<LastSearch>) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(LAST_SEARCH_KEY, JSON.stringify(searchData));
+    } catch (e) {
+      console.error('Erro ao salvar última pesquisa:', e);
+    }
+  };
 
   const fetchViralVideos = useCallback(async () => {
     setLoading(true);
@@ -82,11 +123,26 @@ export function ViralVideoList() {
         }
       }
       
-      setVideos(data.videos || []);
-      setStats({
-        total: data.total || data.videos?.length || 0,
+      const videosData = data.videos || [];
+      setVideos(videosData);
+      const statsData = {
+        total: data.total || videosData.length || 0,
         filtered: data.filtered || false,
-        regions: data.regions || region
+        regions: data.regions || (Array.isArray(region) ? region.join(', ') : region)
+      };
+      setStats(statsData);
+      
+      // Salvar última pesquisa
+      saveLastSearch({
+        platform,
+        region,
+        minLikes,
+        maxDaysAgo,
+        minLikesPerDay,
+        category,
+        sortBy,
+        videos: videosData,
+        stats: statsData,
       });
       
       // Log para debug
