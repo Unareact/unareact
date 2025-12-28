@@ -1,12 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ScriptGenerator } from '../script/ScriptGenerator';
 import { ScriptEditor } from '../script/ScriptEditor';
 import { VideoPlayer } from '../player/VideoPlayer';
 import { Timeline } from '../timeline/Timeline';
 import { EnhancedTimeline } from '../timeline/EnhancedTimeline';
-import { FileText, Video, Scissors, TrendingUp, Download, Upload } from 'lucide-react';
+import { FileText, Video, Scissors, TrendingUp, Download, Upload, Menu, X } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { ViralVideoList } from '../viral/ViralVideoList';
 import { YouTubeDownloader } from '../youtube/YouTubeDownloader';
@@ -14,6 +15,7 @@ import { FileUploader } from '../upload/FileUploader';
 
 export function MainEditor() {
   const { activePanel, setActivePanel } = useEditorStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const panels = [
     { id: 'viral' as const, label: 'Virais', icon: TrendingUp },
@@ -23,15 +25,22 @@ export function MainEditor() {
     { id: 'download' as const, label: 'Download', icon: Download },
   ];
 
+  const handlePanelClick = (panelId: typeof activePanel) => {
+    setActivePanel(panelId);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            UNA - Editor de Vídeo & Roteiros
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">
+            UNA - Editor
           </h1>
-          <div className="flex gap-2">
+          
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex gap-2">
             {panels.map((panel) => {
               const Icon = panel.icon;
               return (
@@ -39,7 +48,7 @@ export function MainEditor() {
                   key={panel.id}
                   onClick={() => setActivePanel(panel.id)}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all",
+                    "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm",
                     activePanel === panel.id
                       ? "bg-purple-600 text-white"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -51,17 +60,56 @@ export function MainEditor() {
               );
             })}
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+            <div className="flex flex-col gap-2">
+              {panels.map((panel) => {
+                const Icon = panel.icon;
+                return (
+                  <button
+                    key={panel.id}
+                    onClick={() => handlePanelClick(panel.id)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-left",
+                      activePanel === panel.id
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {panel.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden grid grid-cols-12 gap-4 p-4">
+      <div className="flex-1 overflow-hidden grid grid-cols-12 gap-3 sm:gap-4 p-3 sm:p-4">
         {/* Left Panel - Roteiro */}
         {activePanel === 'script' && (
-          <div className="col-span-12 lg:col-span-6 overflow-y-auto space-y-4">
+          <div className="col-span-12 lg:col-span-6 overflow-y-auto space-y-3 sm:space-y-4">
             <ScriptGenerator />
-            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 Roteiro Gerado
               </h2>
               <ScriptEditor />
@@ -76,10 +124,10 @@ export function MainEditor() {
           </div>
         ) : activePanel === 'viral' ? (
           <div className="col-span-12 overflow-y-auto">
-            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
-              <div className="flex items-center gap-2 mb-6">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-2 mb-4 sm:mb-6">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Vídeos Virais Globais
                 </h2>
               </div>
@@ -92,15 +140,15 @@ export function MainEditor() {
             "overflow-y-auto",
             activePanel === 'script' ? "col-span-12 lg:col-span-6" : "col-span-12 lg:col-span-8"
           )}>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <VideoPlayer />
               {activePanel === 'editor' && (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Upload de Arquivos */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-2 mb-4">
-                      <Upload className="w-5 h-5 text-purple-600" />
-                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                      <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
                         Upload de Arquivos
                       </h2>
                     </div>
@@ -108,8 +156,8 @@ export function MainEditor() {
                   </div>
 
                   {/* Timeline de Edição */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                       Timeline de Edição
                     </h2>
                     <EnhancedTimeline />
@@ -122,8 +170,8 @@ export function MainEditor() {
 
         {/* Right Panel - Preview Info */}
         {activePanel === 'preview' && (
-          <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Informações do Projeto
             </h2>
             <div className="space-y-4 text-sm">

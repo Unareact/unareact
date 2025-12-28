@@ -94,22 +94,22 @@ export function YouTubeDownloader() {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800 space-y-6">
+    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800 space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           Teste de Download do YouTube
         </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
           Teste o download de vídeos do YouTube usando yt-dlp
         </p>
       </div>
 
       {/* Aviso sobre ToS */}
-      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4">
         <div className="flex items-start gap-2">
-          <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">
+          <Info className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs sm:text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">
               Aviso Importante
             </p>
             <p className="text-xs text-yellow-700 dark:text-yellow-400">
@@ -123,22 +123,22 @@ export function YouTubeDownloader() {
 
       {/* Input de URL */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
           URL do Vídeo do YouTube
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             value={videoUrl}
             onChange={(e) => setVideoUrl(e.target.value)}
             placeholder="https://www.youtube.com/watch?v=..."
-            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="flex-1 px-3 sm:px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             disabled={loading}
           />
           <button
             onClick={getVideoInfo}
             disabled={loading || !videoUrl.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm touch-manipulation"
           >
             <ExternalLink className="w-4 h-4" />
             Info
@@ -175,15 +175,15 @@ export function YouTubeDownloader() {
       )}
 
       {/* Opções de Download */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Formato
           </label>
           <select
             value={format}
             onChange={(e) => setFormat(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
             disabled={loading}
           >
             <option value="mp4">MP4</option>
@@ -192,13 +192,13 @@ export function YouTubeDownloader() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Qualidade
           </label>
           <select
             value={quality}
             onChange={(e) => setQuality(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
             disabled={loading}
           >
             <option value="best">Melhor</option>
@@ -215,7 +215,7 @@ export function YouTubeDownloader() {
         onClick={handleDownload}
         disabled={loading || !videoUrl.trim()}
         className={cn(
-          "w-full py-3 px-6 rounded-lg font-medium text-white transition-all flex items-center justify-center gap-2",
+          "w-full py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg font-medium text-white transition-all flex items-center justify-center gap-2 text-sm sm:text-base touch-manipulation",
           "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800",
           "disabled:opacity-50 disabled:cursor-not-allowed"
         )}

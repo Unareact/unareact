@@ -1,0 +1,43 @@
+{
+  "name": "UNA - Editor de Vídeo & Roteiros",
+  "short_name": "UNA Editor",
+  "description": "Editor de vídeo profissional com geração de roteiros por IA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#9333ea",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "multimedia", "video"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Vídeos Virais",
+      "short_name": "Virais",
+      "description": "Ver vídeos virais",
+      "url": "/?panel=viral",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Gerar Roteiro",
+      "short_name": "Roteiro",
+      "description": "Gerar roteiro com IA",
+      "url": "/?panel=script",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+

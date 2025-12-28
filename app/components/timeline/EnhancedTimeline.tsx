@@ -175,11 +175,11 @@ export function EnhancedTimeline() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             Duração Total: {formatTime(totalDuration)}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-500">
@@ -190,37 +190,39 @@ export function EnhancedTimeline() {
           <button
             onClick={() => setZoom(Math.max(MIN_ZOOM, zoom - 0.25))}
             disabled={zoom <= MIN_ZOOM}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             title="Zoom Out"
+            aria-label="Diminuir zoom"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
-          <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[60px] text-center">
+          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 min-w-[50px] sm:min-w-[60px] text-center">
             {Math.round(zoom * 100)}%
           </span>
           <button
             onClick={() => setZoom(Math.min(MAX_ZOOM, zoom + 0.25))}
             disabled={zoom >= MAX_ZOOM}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             title="Zoom In"
+            aria-label="Aumentar zoom"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>
 
       {/* Timeline Container */}
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto">
-        <div className="relative min-h-[120px]" style={{ width: `${timeToPosition(totalDuration)}px` }}>
+      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 sm:p-4 overflow-x-auto -mx-2 sm:mx-0">
+        <div className="relative min-h-[100px] sm:min-h-[120px]" style={{ width: `${timeToPosition(totalDuration)}px` }}>
           {/* Time Ruler */}
-          <div className="sticky top-0 z-10 bg-gray-200 dark:bg-gray-700 h-8 mb-2 rounded flex items-end">
+          <div className="sticky top-0 z-10 bg-gray-200 dark:bg-gray-700 h-6 sm:h-8 mb-2 rounded flex items-end">
             {generateTimeMarkers().map((time) => (
               <div
                 key={time}
                 className="absolute border-l border-gray-400 dark:border-gray-500"
                 style={{ left: `${timeToPosition(time)}px` }}
               >
-                <span className="absolute -top-6 left-0 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                <span className="absolute -top-5 sm:-top-6 left-0 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
                   {formatTime(time)}
                 </span>
               </div>
@@ -233,7 +235,7 @@ export function EnhancedTimeline() {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onClick={handleTimelineClick}
-            className="relative h-20 bg-gray-50 dark:bg-gray-900 rounded border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer"
+            className="relative h-16 sm:h-20 bg-gray-50 dark:bg-gray-900 rounded border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer touch-manipulation"
           >
             {/* Current Time Indicator */}
           <div
@@ -260,8 +262,8 @@ export function EnhancedTimeline() {
                     setSelectedClipId(clip.id);
                   }}
                   className={cn(
-                    'absolute h-16 rounded border-2 cursor-move transition-all',
-                    'flex items-center gap-2 px-2 overflow-hidden',
+                    'absolute h-12 sm:h-16 rounded border-2 cursor-move transition-all touch-manipulation',
+                    'flex items-center gap-1 sm:gap-2 px-1 sm:px-2 overflow-hidden',
                     isSelected
                       ? 'border-purple-500 shadow-lg z-30'
                       : 'border-gray-400 dark:border-gray-600 hover:border-purple-400 z-10',
@@ -270,22 +272,22 @@ export function EnhancedTimeline() {
                   )}
                   style={{
                     left: `${left}px`,
-                    width: `${Math.max(60, width)}px`, // Mínimo 60px de largura
+                    width: `${Math.max(50, width)}px`, // Mínimo 50px de largura no mobile
                   }}
                 >
                   {/* Resize Handle - Start */}
                   <div
                     onMouseDown={(e) => handleResizeStart(e, clip.id, 'start')}
-                    className="absolute left-0 top-0 bottom-0 w-2 bg-black/20 hover:bg-black/40 cursor-ew-resize z-40"
+                    className="absolute left-0 top-0 bottom-0 w-2 sm:w-3 bg-black/20 hover:bg-black/40 active:bg-black/60 cursor-ew-resize z-40 touch-manipulation"
                   />
 
                   {/* Clip Content */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <GripVertical className="w-4 h-4 text-white/80 flex-shrink-0" />
+                  <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+                    <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/80 flex-shrink-0" />
                     <div className="text-white flex-shrink-0">
                       {getClipIcon(clip.type)}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 hidden sm:block">
                       <div className="text-xs font-medium text-white truncate">
                         {clip.source.length > 20 
                           ? clip.source.substring(0, 20) + '...' 
@@ -295,12 +297,17 @@ export function EnhancedTimeline() {
                         {formatTime(clip.startTime)} - {formatTime(clip.endTime)}
                       </div>
                     </div>
+                    <div className="flex-1 min-w-0 sm:hidden">
+                      <div className="text-[10px] text-white/90 truncate">
+                        {formatTime(clip.startTime)}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Resize Handle - End */}
                   <div
                     onMouseDown={(e) => handleResizeStart(e, clip.id, 'end')}
-                    className="absolute right-0 top-0 bottom-0 w-2 bg-black/20 hover:bg-black/40 cursor-ew-resize z-40"
+                    className="absolute right-0 top-0 bottom-0 w-2 sm:w-3 bg-black/20 hover:bg-black/40 active:bg-black/60 cursor-ew-resize z-40 touch-manipulation"
                   />
 
                   {/* Delete Button */}
@@ -325,25 +332,25 @@ export function EnhancedTimeline() {
 
       {/* Clip Info */}
       {selectedClipId && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+        <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
           {(() => {
             const clip = clips.find(c => c.id === selectedClipId);
             if (!clip) return null;
             return (
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
                     Clip Selecionado
                   </h3>
                   <button
                     onClick={() => setCurrentTime(clip.startTime)}
-                    className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1"
+                    className="w-full sm:w-auto px-3 py-1.5 sm:py-1 text-xs sm:text-sm bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center justify-center gap-1 touch-manipulation"
                   >
                     <Play className="w-3 h-3" />
                     Ir para início
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <p className="text-gray-500 dark:text-gray-400">Início</p>
                     <p className="font-medium text-gray-900 dark:text-gray-100">

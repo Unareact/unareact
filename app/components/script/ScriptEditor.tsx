@@ -57,20 +57,20 @@ export function ScriptEditor() {
         <div
           key={segment.id}
           className={cn(
-            "p-4 rounded-lg border-2 transition-all",
+            "p-3 sm:p-4 rounded-lg border-2 transition-all",
             "bg-white dark:bg-gray-800",
             "border-gray-200 dark:border-gray-700",
             "hover:border-purple-300 dark:hover:border-purple-700"
           )}
         >
-          <div className="flex items-start justify-between gap-4 mb-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+          <div className="flex items-start justify-between gap-2 sm:gap-4 mb-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+              <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400">
                 #{index + 1}
               </span>
               <span
                 className={cn(
-                  "px-2 py-1 rounded text-xs font-medium",
+                  "px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-medium",
                   getTypeColor(segment.type)
                 )}
               >
@@ -78,29 +78,36 @@ export function ScriptEditor() {
               </span>
               <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                 <Clock className="w-3 h-3" />
-                {formatTime(segment.timestamp)} - {formatTime(segment.timestamp + segment.duration)}
-                {' '}({segment.duration}s)
+                <span className="hidden sm:inline">
+                  {formatTime(segment.timestamp)} - {formatTime(segment.timestamp + segment.duration)}
+                  {' '}({segment.duration}s)
+                </span>
+                <span className="sm:hidden">
+                  {formatTime(segment.timestamp)} ({segment.duration}s)
+                </span>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2 flex-shrink-0">
               <button
                 onClick={() => {
                   const newText = prompt('Editar texto:', segment.text);
                   if (newText) updateScriptSegment(segment.id, { text: newText });
                 }}
                 className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+                aria-label="Editar"
               >
-                <Edit2 className="w-4 h-4" />
+                <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <button
                 onClick={() => deleteScriptSegment(segment.id)}
                 className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400"
+                aria-label="Deletar"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
-          <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+          <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
             {segment.text}
           </p>
         </div>

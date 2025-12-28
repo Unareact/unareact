@@ -26,8 +26,8 @@ export function VideoPlayer() {
     <div className="bg-gray-900 rounded-lg overflow-hidden">
       {/* Preview Area */}
       <div className="aspect-video bg-gray-800 flex items-center justify-center relative">
-        <div className="text-gray-500 text-center">
-          <p className="text-sm mb-2">Preview do Vídeo</p>
+        <div className="text-gray-500 text-center px-4">
+          <p className="text-xs sm:text-sm mb-2">Preview do Vídeo</p>
           <p className="text-xs text-gray-600">
             {formatTime(currentTime)} / {formatTime(duration)}
           </p>
@@ -35,7 +35,7 @@ export function VideoPlayer() {
       </div>
 
       {/* Controls */}
-      <div className="p-4 bg-gray-950 space-y-3">
+      <div className="p-3 sm:p-4 bg-gray-950 space-y-2 sm:space-y-3">
         {/* Progress Bar */}
         <div className="space-y-1">
           <input
@@ -44,7 +44,7 @@ export function VideoPlayer() {
             max={duration || 100}
             value={currentTime}
             onChange={handleSeek}
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+            className="w-full h-1.5 sm:h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
           />
           <div className="flex justify-between text-xs text-gray-400">
             <span>{formatTime(currentTime)}</span>
@@ -53,34 +53,37 @@ export function VideoPlayer() {
         </div>
 
         {/* Playback Controls */}
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-3 sm:gap-4">
           <button
             onClick={() => skip(-10)}
-            className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors touch-manipulation"
             title="Voltar 10s"
+            aria-label="Voltar 10 segundos"
           >
-            <SkipBack className="w-5 h-5" />
+            <SkipBack className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <button
             onClick={() => setIsPlaying(!isPlaying)}
             className={cn(
-              "p-3 rounded-full transition-all",
+              "p-2.5 sm:p-3 rounded-full transition-all touch-manipulation",
               "bg-purple-600 hover:bg-purple-700 text-white",
               "flex items-center justify-center"
             )}
+            aria-label={isPlaying ? "Pausar" : "Reproduzir"}
           >
             {isPlaying ? (
-              <Pause className="w-6 h-6" />
+              <Pause className="w-5 h-5 sm:w-6 sm:h-6" />
             ) : (
-              <Play className="w-6 h-6 ml-0.5" />
+              <Play className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5" />
             )}
           </button>
           <button
             onClick={() => skip(10)}
-            className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors touch-manipulation"
             title="Avançar 10s"
+            aria-label="Avançar 10 segundos"
           >
-            <SkipForward className="w-5 h-5" />
+            <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>

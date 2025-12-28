@@ -7,11 +7,19 @@ const youtube = google.youtube('v3');
 
 export async function POST(request: NextRequest) {
   try {
-    const { videoId } = await request.json();
+    const { videoId, platform = 'youtube' } = await request.json();
 
     if (!videoId) {
       return NextResponse.json(
         { error: 'Video ID não fornecido' },
+        { status: 400 }
+      );
+    }
+
+    // Verificar se é TikTok (ainda não suportado)
+    if (platform === 'tiktok') {
+      return NextResponse.json(
+        { error: 'Diagnóstico de vídeos do TikTok ainda não está disponível. Esta funcionalidade está disponível apenas para vídeos do YouTube.' },
         { status: 400 }
       );
     }

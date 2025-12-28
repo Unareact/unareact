@@ -25,10 +25,11 @@ import { generateScriptFromViralDiagnosis } from '@/app/lib/openai';
 interface ViralDiagnosisProps {
   videoId: string;
   videoTitle: string;
+  platform?: 'youtube' | 'tiktok';
   onClose?: () => void;
 }
 
-export function ViralDiagnosis({ videoId, videoTitle, onClose }: ViralDiagnosisProps) {
+export function ViralDiagnosis({ videoId, videoTitle, platform = 'youtube', onClose }: ViralDiagnosisProps) {
   const [diagnosis, setDiagnosis] = useState<ViralDiagnosis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,17 +37,25 @@ export function ViralDiagnosis({ videoId, videoTitle, onClose }: ViralDiagnosisP
   const { setScript, setActivePanel, setCurrentViralDiagnosis } = useEditorStore();
 
   const generateDiagnosis = async () => {
+    // Verificar se é TikTok (ainda não suportado)
+    if (platform === 'tiktok') {
+      setError('Diagnóstico de vídeos do TikTok ainda não está disponível. Esta funcionalidade está disponível apenas para vídeos do YouTube.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const response = await fetch('/api/diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId }),
+        body: JSON.stringify({ videoId, platform }),
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao gerar diagnóstico');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao gerar diagnóstico');
       }
 
       const data = await response.json();

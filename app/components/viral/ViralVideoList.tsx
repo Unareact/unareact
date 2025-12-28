@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
-import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone } from 'lucide-react';
+import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X } from 'lucide-react';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
@@ -18,6 +18,7 @@ export function ViralVideoList() {
   const [maxDaysAgo, setMaxDaysAgo] = useState(0);
   const [minLikesPerDay, setMinLikesPerDay] = useState(0);
   const [category, setCategory] = useState('0'); // Categoria/nicho (apenas YouTube)
+  const [shortsOnly, setShortsOnly] = useState(false); // Filtrar apenas YouTube Shorts
   const [sortBy, setSortBy] = useState('views'); // Ordenação - padrão: mais views primeiro
   const [error, setError] = useState<string | null>(null);
   const [diagnosingVideo, setDiagnosingVideo] = useState<{ id: string; title: string } | null>(null);
@@ -38,10 +39,13 @@ export function ViralVideoList() {
         sortBy: sortBy,
       });
       
-      // Região e categoria apenas para YouTube
+      // Região, categoria e shorts apenas para YouTube
       if (platform === 'youtube' || platform === 'all') {
         params.append('region', region);
         params.append('category', category);
+        if (shortsOnly) {
+          params.append('shortsOnly', 'true');
+        }
       }
       
       const url = `/api/viral?${params.toString()}`;
@@ -112,10 +116,17 @@ export function ViralVideoList() {
       const response = await fetch('/api/viral/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoUrl: video.url }),
+        body: JSON.stringify({ 
+          videoUrl: video.url,
+          platform: video.platform 
+        }),
       });
 
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao fazer download');
+      }
       
       if (data.success) {
         // Adicionar à timeline como clip
@@ -129,10 +140,33 @@ export function ViralVideoList() {
         
         alert(`Vídeo "${video.title}" adicionado à timeline!`);
       } else {
-        alert('Erro ao fazer download: ' + data.error);
+        // Mensagem de erro mais detalhada
+        let errorMessage = data.error || 'Erro desconhecido';
+        if (data.installInstructions) {
+          errorMessage += `\n\nPara instalar yt-dlp:\n${data.installInstructions.current || data.installInstructions.macOS || 'pip install yt-dlp'}`;
+        }
+        alert('Erro ao fazer download: ' + errorMessage);
       }
     } catch (err: any) {
-      alert('Erro ao fazer download: ' + err.message);
+      console.error('Erro ao fazer download:', err);
+      let errorMessage = err.message || 'Erro desconhecido';
+      
+      // Tentar extrair mensagem de erro do response se disponível
+      if (err.response) {
+        try {
+          const errorData = await err.response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+            if (errorData.installInstructions) {
+              errorMessage += `\n\nPara instalar yt-dlp:\n${errorData.installInstructions.current || errorData.installInstructions.macOS || 'pip install yt-dlp'}`;
+            }
+          }
+        } catch {
+          // Ignorar se não conseguir parsear
+        }
+      }
+      
+      alert('Erro ao fazer download: ' + errorMessage);
     }
   };
 
@@ -214,15 +248,15 @@ export function ViralVideoList() {
       {/* <PlatformStatus /> */}
       
       {/* Filtros */}
-      <div className="space-y-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-purple-600" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+      <div className="space-y-4 p-3 sm:p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
             Filtros e Ordenação
           </h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Plataforma */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -305,6 +339,27 @@ export function ViralVideoList() {
             </div>
           )}
           
+          {/* YouTube Shorts - Apenas para YouTube */}
+          {(platform === 'youtube' || platform === 'all') && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <Smartphone className="w-4 h-4" />
+                Tipo de Vídeo
+              </label>
+              <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={shortsOnly}
+                  onChange={(e) => setShortsOnly(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">
+                  📱 Apenas Shorts (≤60s)
+                </span>
+              </label>
+            </div>
+          )}
+          
           {/* Ordenação - Como os vídeos vão aparecer */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -326,7 +381,7 @@ export function ViralVideoList() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-2 border-t border-gray-200 dark:border-gray-700">
           {/* Mín. Curtidas */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -495,7 +550,7 @@ export function ViralVideoList() {
       </div>
 
       {/* Lista de Vídeos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {videos.map((video) => (
           <div
             key={video.id}
@@ -575,18 +630,18 @@ export function ViralVideoList() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleDownload(video)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs sm:text-sm font-medium transition-colors"
                   >
-                    <Download className="w-4 h-4" />
-                    Baixar
+                    <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Baixar</span>
                   </button>
                   <a
                     href={video.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-xs sm:text-sm font-medium transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </a>
                 </div>
                 <div className="flex gap-2">
@@ -595,20 +650,21 @@ export function ViralVideoList() {
                       setDiagnosingVideo({ id: video.id, title: video.title });
                       setActivePanel('viral'); // Garantir que está no painel viral
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 text-sm font-medium transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 text-xs sm:text-sm font-medium transition-colors"
                   >
-                    <Brain className="w-4 h-4" />
-                    Diagnosticar
+                    <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Diagnosticar</span>
+                    <span className="xs:hidden">Diag</span>
                   </button>
                   <button
                     onClick={() => {
                       setDiagnosingVideo({ id: video.id, title: video.title });
                       setActivePanel('script'); // Ir direto para o painel de roteiros após diagnóstico
                     }}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 text-sm font-medium transition-colors"
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 text-xs sm:text-sm font-medium transition-colors"
                     title="Diagnosticar e gerar roteiro otimizado"
                   >
-                    <Brain className="w-4 h-4" />
+                    <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Roteiro</span>
                   </button>
                 </div>
@@ -658,17 +714,19 @@ export function ViralVideoList() {
 
       {/* Modal de Diagnóstico */}
       {diagnosingVideo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative">
             <button
               onClick={() => setDiagnosingVideo(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Fechar"
             >
-              ✕
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <ViralDiagnosisComponent
               videoId={diagnosingVideo.id}
               videoTitle={diagnosingVideo.title}
+              platform={videos.find(v => v.id === diagnosingVideo.id)?.platform || 'youtube'}
               onClose={() => setDiagnosingVideo(null)}
             />
           </div>

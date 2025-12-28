@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const minLikes = parseInt(searchParams.get('minLikes') || '0');
     const maxDaysAgo = parseInt(searchParams.get('maxDaysAgo') || '0');
     const minLikesPerDay = parseFloat(searchParams.get('minLikesPerDay') || '0');
+    const shortsOnly = searchParams.get('shortsOnly') === 'true'; // Filtrar apenas YouTube Shorts
     const sortBy = searchParams.get('sortBy') || 'views'; // Padrão: mais views primeiro
 
     console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category });
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (platform === 'all') {
       console.log('📱 Buscando de todas as plataformas...');
       const [youtubeResult, tiktokResult] = await Promise.allSettled([
-        getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
+        getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly),
         getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
       ]);
 
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
           minLikes: minLikes > 0,
           maxDaysAgo: maxDaysAgo > 0,
           minLikesPerDay: minLikesPerDay > 0,
+          shortsOnly: shortsOnly,
           sortBy,
         },
       });
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     // Padrão: YouTube (código existente)
     console.log('▶️ Buscando apenas YouTube...');
-    return await getYouTubeVideos(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
+    return await getYouTubeVideos(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly);
   } catch (error: any) {
     console.error('Erro ao buscar vídeos virais:', error);
     return NextResponse.json(
@@ -168,6 +170,19 @@ async function getTikTokVideos(
   }
 }
 
+// Função auxiliar para converter duração ISO 8601 para segundos
+function parseDurationToSeconds(duration: string): number {
+  // Formato ISO 8601: PT1H2M3S ou PT60S
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+  
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
 // Função auxiliar para buscar dados do YouTube (retorna array)
 async function getYouTubeVideosData(
   regionParam: string,
@@ -176,7 +191,8 @@ async function getYouTubeVideosData(
   minLikes: number,
   maxDaysAgo: number,
   minLikesPerDay: number,
-  sortBy: string
+  sortBy: string,
+  shortsOnly: boolean = false
 ): Promise<ViralVideo[]> {
   try {
     const apiKey = process.env.YOUTUBE_API_KEY;
@@ -312,6 +328,16 @@ async function getYouTubeVideosData(
     // Aplicar filtros na ordem correta
     let filteredVideos = [...videos]; // Criar cópia para não modificar o original
     
+    // 0. Filtrar apenas Shorts (duração <= 60 segundos)
+    if (shortsOnly) {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => {
+        const durationSeconds = parseDurationToSeconds(video.duration);
+        return durationSeconds > 0 && durationSeconds <= 60;
+      });
+      console.log(`Filtro de Shorts: ${before} → ${filteredVideos.length} vídeos (≤60 segundos)`);
+    }
+    
     // 1. Filtrar por curtidas mínimas (primeiro, pois é o mais restritivo)
     if (minLikes > 0) {
       const before = filteredVideos.length;
@@ -401,11 +427,12 @@ async function getYouTubeVideos(
   minLikes: number,
   maxDaysAgo: number,
   minLikesPerDay: number,
-  sortBy: string
+  sortBy: string,
+  shortsOnly: boolean = false
 ) {
   try {
-    const finalVideos = await getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
-    const allVideos = await getYouTubeVideosData(regionParam, maxResults * 3, category, 0, 0, 0, sortBy);
+    const finalVideos = await getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly);
+    const allVideos = await getYouTubeVideosData(regionParam, maxResults * 3, category, 0, 0, 0, sortBy, shortsOnly);
 
     return NextResponse.json({ 
       videos: finalVideos,
@@ -442,6 +469,7 @@ async function getYouTubeVideos(
           maxDaysAgo: maxDaysAgo > 0,
           minLikesPerDay: minLikesPerDay > 0,
           category: category && category !== '0',
+          shortsOnly: shortsOnly,
           sortBy,
         },
       },
