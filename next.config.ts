@@ -24,8 +24,9 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  // Desabilitar Turbopack completamente - Remotion não é compatível
-  // O Turbopack será desabilitado via variável de ambiente no build
+  // Configuração vazia do Turbopack para silenciar o erro
+  // O webpack será usado quando necessário (para Remotion)
+  turbopack: {},
 };
 
 export default nextConfig;
