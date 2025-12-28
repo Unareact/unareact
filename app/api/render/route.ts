@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // Retornar URL relativa para download
     const filename = path.basename(outputPath);
-    const downloadUrl = `/api/downloads/${filename}`;
+    const downloadUrl = `/api/downloads/file/${filename}`;
 
     return NextResponse.json({
       success: true,
