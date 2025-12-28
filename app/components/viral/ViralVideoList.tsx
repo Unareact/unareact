@@ -8,6 +8,8 @@ import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
 import { RegionSelector } from './RegionSelector';
+import { parseVideoUrl } from '@/app/lib/video-url-parser';
+import { Link, Search } from 'lucide-react';
 // import { PlatformStatus } from './PlatformStatus';
 
 // Chave para localStorage
@@ -53,8 +55,11 @@ export function ViralVideoList() {
   const [shortsOnly, setShortsOnly] = useState(false);
   const [sortBy, setSortBy] = useState(lastSearch?.sortBy || 'views');
   const [error, setError] = useState<string | null>(null);
-  const [diagnosingVideo, setDiagnosingVideo] = useState<{ id: string; title: string } | null>(null);
+  const [diagnosingVideo, setDiagnosingVideo] = useState<{ id: string; title: string; platform?: string } | null>(null);
   const [stats, setStats] = useState<{ total: number; filtered: boolean; regions: string } | null>(lastSearch?.stats || null);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
+  const [urlDiagnosis, setUrlDiagnosis] = useState<any>(null);
   const { addClip, setActivePanel } = useEditorStore();
 
   // Salvar pesquisa no localStorage
