@@ -306,10 +306,147 @@ export function ViralVideoList() {
     );
   }
 
+  // Função para analisar URL e buscar vídeos similares
+  const handleAnalyzeUrl = async () => {
+    if (!videoUrl.trim()) {
+      setError('Por favor, insira uma URL válida');
+      return;
+    }
+
+    setIsAnalyzingUrl(true);
+    setError(null);
+
+    try {
+      // Parse da URL
+      const parsed = parseVideoUrl(videoUrl);
+      if (!parsed.isValid || !parsed.videoId) {
+        throw new Error('URL inválida. Use uma URL do YouTube ou TikTok.');
+      }
+
+      // Diagnosticar o vídeo
+      const diagnosisResponse = await fetch('/api/diagnosis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId: parsed.videoId,
+          platform: parsed.platform,
+        }),
+      });
+
+      if (!diagnosisResponse.ok) {
+        const errorData = await diagnosisResponse.json();
+        throw new Error(errorData.error || 'Erro ao diagnosticar vídeo');
+      }
+
+      const diagnosis = await diagnosisResponse.json();
+      setUrlDiagnosis(diagnosis.diagnosis);
+
+      // Buscar vídeos similares baseado no diagnóstico
+      const similarResponse = await fetch('/api/viral/similar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          diagnosis: diagnosis.diagnosis,
+          maxResults: 50,
+        }),
+      });
+
+      if (!similarResponse.ok) {
+        const errorData = await similarResponse.json();
+        throw new Error(errorData.error || 'Erro ao buscar vídeos similares');
+      }
+
+      const similarData = await similarResponse.json();
+      setVideos(similarData.videos || []);
+      setStats({
+        total: similarData.total || 0,
+        filtered: false,
+        regions: 'Similares',
+      });
+
+      // Salvar pesquisa
+      saveLastSearch({
+        platform: 'youtube',
+        region: 'ALL_AMERICAS',
+        minLikes: 0,
+        maxDaysAgo: 0,
+        minLikesPerDay: 0,
+        category: '0',
+        sortBy: 'viralScore',
+        videos: similarData.videos || [],
+        stats: {
+          total: similarData.total || 0,
+          filtered: false,
+          regions: 'Similares',
+        },
+      });
+
+    } catch (err: any) {
+      setError(err.message || 'Erro ao analisar URL');
+      console.error('Erro ao analisar URL:', err);
+    } finally {
+      setIsAnalyzingUrl(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Status das Plataformas */}
       {/* <PlatformStatus /> */}
+      
+      {/* Busca por URL */}
+      <div className="p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+        <div className="flex items-center gap-2 mb-3">
+          <Link className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Buscar por URL
+          </h3>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Cole a URL de um vídeo viral para analisar e encontrar vídeos similares
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !isAnalyzingUrl) {
+                handleAnalyzeUrl();
+              }
+            }}
+          />
+          <button
+            onClick={handleAnalyzeUrl}
+            disabled={isAnalyzingUrl || !videoUrl.trim()}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            {isAnalyzingUrl ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Analisando...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4" />
+                Analisar e Buscar
+              </>
+            )}
+          </button>
+        </div>
+        {urlDiagnosis && (
+          <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+              📊 Vídeo analisado: <strong>{urlDiagnosis.videoTitle}</strong>
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              Buscando vídeos com padrões similares: {urlDiagnosis.viralFactors?.structure || 'N/A'}
+            </p>
+          </div>
+        )}
+      </div>
       
       {/* Filtros */}
       <div className="space-y-4 p-3 sm:p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
