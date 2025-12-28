@@ -42,7 +42,7 @@ export const RemotionRoot: React.FC<RemotionRootProps> = ({
   return (
     <Composition
       id="VideoComposition"
-      component={VideoComposition}
+      component={VideoComposition as React.ComponentType<any>}
       durationInFrames={durationInFrames}
       fps={fps}
       width={1920}
