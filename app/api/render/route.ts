@@ -98,8 +98,9 @@ export async function POST(request: NextRequest) {
         transitions: transitions || [],
         captions: captions || [],
       },
-      onProgress: (progress) => {
-        console.log(`📊 Progresso: ${Math.round(progress * 100)}%`);
+      onProgress: (progress: { renderedFrames: number; encodedFrames: number }) => {
+        const totalProgress = progress.encodedFrames / (durationInFrames || 1);
+        console.log(`📊 Progresso: ${Math.round(totalProgress * 100)}%`);
       },
     });
 
