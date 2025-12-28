@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Se regionParam contém vírgulas, é uma lista de países
-    const regions = regionParam.includes(',') ? regionParam.split(',').map(r => r.trim()) : regionParam;
+    const regions: string | string[] = regionParam.includes(',') 
+      ? regionParam.split(',').map(r => r.trim()) 
+      : regionParam;
 
     // Se for 'all', buscar de ambas as plataformas
     if (platform === 'all') {
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Padrão: YouTube (código existente)
     console.log('▶️ Buscando apenas YouTube...');
-    const regionParamForYouTube = Array.isArray(regionParam) ? regionParam.join(',') : regionParam;
+    const regionParamForYouTube = Array.isArray(regions) ? regions.join(',') : regions;
     return await getYouTubeVideos(regionParamForYouTube, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly);
   } catch (error: any) {
     console.error('Erro ao buscar vídeos virais:', error);
@@ -189,7 +191,7 @@ function parseDurationToSeconds(duration: string): number {
 
 // Função auxiliar para buscar dados do YouTube (retorna array)
 async function getYouTubeVideosData(
-  regionParam: string,
+  regionParam: string | string[],
   maxResults: number,
   category: string,
   minLikes: number,
@@ -218,8 +220,18 @@ async function getYouTubeVideosData(
     // Regiões da América
     const americasRegions = ['US', 'BR', 'MX', 'AR', 'CO', 'CL', 'PE', 'VE', 'EC', 'GT', 'CU', 'BO', 'HT', 'DO', 'HN', 'PY', 'NI', 'SV', 'CR', 'PA', 'UY', 'JM', 'TT', 'BZ', 'BS', 'BB', 'SR', 'GY', 'CA'];
     
-    // Se for "ALL_AMERICAS", buscar em todas as regiões
-    const regionsToSearch = regionParam === 'ALL_AMERICAS' ? americasRegions : [regionParam];
+    // Determinar regiões para buscar
+    let regionsToSearch: string[];
+    if (Array.isArray(regionParam)) {
+      regionsToSearch = regionParam;
+    } else if (regionParam === 'ALL_AMERICAS') {
+      regionsToSearch = americasRegions;
+    } else if (regionParam.includes(',')) {
+      // Se for string com vírgulas, dividir
+      regionsToSearch = regionParam.split(',').map(r => r.trim());
+    } else {
+      regionsToSearch = [regionParam];
+    }
     
     // Se houver filtro de curtidas, buscar mais vídeos para ter mais opções
     const searchLimit = minLikes > 0 ? Math.max(maxResults * 3, 100) : maxResults;
