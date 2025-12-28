@@ -29,11 +29,23 @@ const nextConfig: NextConfig = {
     );
     
     // Ignorar warnings de self-reference dependency do Remotion
+    // Esses warnings são comuns em bibliotecas complexas e não afetam a funcionalidade
     config.ignoreWarnings = [
       { module: /node_modules\/@remotion/ },
       { message: /Self-reference dependency/ },
       { message: /Module parse failed/ },
+      { message: /has unused export name/ },
     ];
+    
+    // Desabilitar tratamento de warnings como erros para módulos do Remotion
+    config.stats = config.stats || {};
+    if (typeof config.stats === 'object') {
+      config.stats.warningsFilter = [
+        /Self-reference dependency/,
+        /has unused export name/,
+        /node_modules\/@remotion/,
+      ];
+    }
     
     // Excluir módulos nativos do Remotion do processamento do webpack
     config.externals = config.externals || [];
@@ -52,6 +64,20 @@ const nextConfig: NextConfig = {
   // Configuração vazia do Turbopack para silenciar o erro
   // O webpack será usado quando necessário (para Remotion)
   turbopack: {},
+  
+  // Configurações experimentais para melhor compatibilidade
+  experimental: {
+    // Desabilitar otimizações que podem causar problemas com Remotion
+    serverComponentsExternalPackages: ['@remotion/bundler', '@remotion/renderer'],
+  },
+  
+  // Configuração de output file tracing para excluir Remotion do bundle
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@remotion/**/*',
+      'node_modules/esbuild/**/*.d.ts',
+    ],
+  },
 };
 
 export default nextConfig;
