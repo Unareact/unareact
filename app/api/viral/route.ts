@@ -242,11 +242,11 @@ async function searchYouTubeByKeywords(
       key: apiKey,
       part: ['snippet'],
       q: searchQuery,
-      type: ['video'],
+      type: 'video',
       maxResults: Math.min(maxResults * 3, 50), // Buscar mais para ter opções após filtros
       order: 'viewCount', // Ordenar por visualizações
       relevanceLanguage: 'pt', // Priorizar português
-    });
+    } as any);
 
     if (!searchResponse.data.items || searchResponse.data.items.length === 0) {
       console.warn('⚠️ Nenhum vídeo encontrado na busca por palavras-chave');

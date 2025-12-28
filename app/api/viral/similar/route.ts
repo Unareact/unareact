@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
       key: apiKey,
       part: ['snippet'],
       q: searchQuery,
-      type: ['video'],
+      type: 'video',
       maxResults: Math.min(maxResults * 2, 50), // Buscar mais para ter opções
       order: 'viewCount', // Ordenar por visualizações
-    });
+    } as any);
 
     if (!searchResponse.data.items || searchResponse.data.items.length === 0) {
       return NextResponse.json({
