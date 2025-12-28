@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  // Configuração vazia do Turbopack para silenciar o erro
+  // O webpack config acima será usado quando necessário
+  turbopack: {},
 };
 
 export default nextConfig;

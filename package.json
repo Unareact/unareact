@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "deploy": "npm run build && git add . && git commit -m 'chore: Auto-deploy' && git push origin main || true",
