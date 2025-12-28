@@ -726,7 +726,12 @@ export function ViralVideoList() {
             <ViralDiagnosisComponent
               videoId={diagnosingVideo.id}
               videoTitle={diagnosingVideo.title}
-              platform={(videos.find(v => v.id === diagnosingVideo.id)?.platform === 'tiktok' ? 'tiktok' : 'youtube') as 'youtube' | 'tiktok'}
+              platform={(() => {
+                const video = videos.find(v => v.id === diagnosingVideo.id);
+                if (video?.platform === 'tiktok') return 'tiktok' as const;
+                if (video?.platform === 'youtube') return 'youtube' as const;
+                return 'youtube' as const; // Default para outras plataformas
+              })()}
               onClose={() => setDiagnosingVideo(null)}
             />
           </div>
