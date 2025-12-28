@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { bundle } from '@remotion/bundler';
-import { renderMedia } from '@remotion/renderer';
 import path from 'path';
 import fs from 'fs';
 import { VideoClip, ScriptSegment } from '@/app/types';
+
+// Import dinâmico do Remotion apenas no servidor para evitar problemas no build
+const getRemotionModules = async () => {
+  if (typeof window !== 'undefined') {
+    throw new Error('Remotion só pode ser usado no servidor');
+  }
+  const [{ bundle }, { renderMedia }] = await Promise.all([
+    import('@remotion/bundler'),
+    import('@remotion/renderer'),
+  ]);
+  return { bundle, renderMedia };
+};
 
 const OUTPUT_DIR = path.join(process.cwd(), 'tmp', 'renders');
 
@@ -42,8 +52,11 @@ export async function POST(request: NextRequest) {
 
     console.log('📦 Iniciando bundle do Remotion...');
     
+    // Import dinâmico do Remotion
+    const { bundle: bundleFn, renderMedia: renderMediaFn } = await getRemotionModules();
+    
     // Bundle do Remotion
-    const bundleLocation = await bundle({
+    const bundleLocation = await bundleFn({
       entryPoint: path.join(process.cwd(), 'app', 'components', 'remotion', 'RemotionRoot.tsx'),
       webpackOverride: (config) => config,
     });
@@ -57,7 +70,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Renderizar vídeo
-    await renderMedia({
+    await renderMediaFn({
       composition: {
         id: 'VideoComposition',
         width,
