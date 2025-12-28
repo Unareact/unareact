@@ -13,12 +13,14 @@ const nextConfig: NextConfig = {
     }
     
     // Ignorar arquivos .d.ts (TypeScript declaration files) do esbuild
-    config.module = config.module || {};
-    config.module.rules = config.module.rules || [];
-    config.module.rules.push({
-      test: /\.d\.ts$/,
-      use: 'null-loader',
-    });
+    // Usar IgnorePlugin em vez de loader
+    config.plugins = config.plugins || [];
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /\.d\.ts$/,
+        contextRegExp: /node_modules\/esbuild/,
+      })
+    );
     
     // Ignorar warnings de self-reference dependency do Remotion
     config.ignoreWarnings = [
