@@ -3,8 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { VideoClip } from '@/app/types';
-import { Film, Image, Type, Trash2, ZoomIn, ZoomOut, GripVertical, Play } from 'lucide-react';
+import { Film, Image, Type, Trash2, ZoomIn, ZoomOut, GripVertical, Play, Settings } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
+import { ClipEditControls } from '../editor/ClipEditControls';
 
 const PIXELS_PER_SECOND = 50; // Escala base: 50px por segundo
 const MIN_ZOOM = 0.5; // 25px por segundo
@@ -17,6 +18,7 @@ export function EnhancedTimeline() {
   const [dragOffset, setDragOffset] = useState(0);
   const [resizingClipId, setResizingClipId] = useState<string | null>(null);
   const [resizeSide, setResizeSide] = useState<'start' | 'end' | null>(null);
+  const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const pixelsPerSecond = PIXELS_PER_SECOND * zoom;
@@ -310,6 +312,20 @@ export function EnhancedTimeline() {
                     className="absolute right-0 top-0 bottom-0 w-2 sm:w-3 bg-black/20 hover:bg-black/40 active:bg-black/60 cursor-ew-resize z-40 touch-manipulation"
                   />
 
+                  {/* Edit Button */}
+                  {isSelected && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingClipId(clip.id);
+                      }}
+                      className="absolute -top-2 -left-2 p-1 bg-purple-600 text-white rounded-full hover:bg-purple-700 z-50"
+                      title="Editar clip"
+                    >
+                      <Settings className="w-3 h-3" />
+                    </button>
+                  )}
+
                   {/* Delete Button */}
                   {isSelected && (
                     <button
@@ -331,7 +347,7 @@ export function EnhancedTimeline() {
       </div>
 
       {/* Clip Info */}
-      {selectedClipId && (
+      {selectedClipId && !editingClipId && (
         <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
           {(() => {
             const clip = clips.find(c => c.id === selectedClipId);
@@ -375,11 +391,35 @@ export function EnhancedTimeline() {
                       {clip.type}
                     </p>
                   </div>
+                  {clip.speed && (
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Velocidade</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {clip.speed}x
+                      </p>
+                    </div>
+                  )}
+                  {clip.rotation && (
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Rotação</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {clip.rotation}°
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })()}
         </div>
+      )}
+
+      {/* Edit Controls */}
+      {editingClipId && (
+        <ClipEditControls
+          clip={clips.find(c => c.id === editingClipId)!}
+          onClose={() => setEditingClipId(null)}
+        />
       )}
     </div>
   );

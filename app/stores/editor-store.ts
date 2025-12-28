@@ -33,6 +33,7 @@ interface EditorState {
   addClip: (clip: VideoClip) => void;
   updateClip: (id: string, updates: Partial<VideoClip>) => void;
   deleteClip: (id: string) => void;
+  setClips: (clips: VideoClip[]) => void;
   
   setCurrentTime: (time: number) => void;
   setIsPlaying: (playing: boolean) => void;
@@ -96,6 +97,8 @@ export const useEditorStore = create<EditorState>((set) => ({
     set((state) => ({
       clips: state.clips.filter((clip) => clip.id !== id),
     })),
+  
+  setClips: (clips) => set({ clips }),
   
   setCurrentTime: (time) => set({ currentTime: time }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),

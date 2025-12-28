@@ -8,6 +8,15 @@ const openai = new OpenAI({
 });
 
 export async function generateScript(params: ScriptGenerationParams): Promise<ScriptSegment[]> {
+  // Validações pré-geração
+  if (!params.topic || params.topic.trim().length < 5) {
+    throw new Error('Tópico deve ter pelo menos 5 caracteres');
+  }
+  
+  if (params.duration < 10 || params.duration > 600) {
+    throw new Error('Duração deve estar entre 10 e 600 segundos');
+  }
+
   // Detectar nicho automaticamente
   const detectedNiche = detectNiche(params.topic);
   const nicheConfig = getNicheConfig(detectedNiche);
@@ -282,6 +291,30 @@ SEGMENTO 5 - CTA/CONCLUSÃO (5-10 segundos):
   prompt += `
 
 ═══════════════════════════════════════════════════════════════
+📐 REGRAS DE ESTRUTURA OBRIGATÓRIAS:
+═══════════════════════════════════════════════════════════════
+
+1. PRIMEIRO SEGMENTO (Hook - 3-8s):
+   - DEVE criar "curiosidade gap" imediata
+   - DEVE mencionar benefício/resultado específico (com números quando possível)
+   - DEVE usar linguagem que desperte interesse
+   - NÃO use: "Neste vídeo vou falar sobre...", "Vou explicar...", "É interessante..."
+   - USE: "Você já se perguntou por que [resultado específico]?", "Esta estratégia gerou [número] em [tempo]..."
+
+2. SEGMENTOS INTERMEDIÁRIOS (60-70% do vídeo):
+   - Cada segmento DEVE ter um ponto específico e claro
+   - Use transições naturais: "Agora que você entendeu X, vamos para Y"
+   - Mude ritmo a cada 3-7 segundos (novo ponto, nova informação, nova emoção)
+   - Adicione "dopamina hits": surpresas, revelações, insights inesperados
+   - Seja ESPECÍFICO: use números, exemplos concretos, detalhes
+
+3. ÚLTIMO SEGMENTO (CTA - 5-10s):
+   - DEVE ter call-to-action claro e específico
+   - DEVE criar urgência ou desejo de ação
+   - NÃO use: "Se gostou, curta e se inscreva" (genérico demais)
+   - USE: "Teste [ação específica] e me conte o resultado nos comentários", "Aplique [técnica] hoje e veja a diferença"
+
+═══════════════════════════════════════════════════════════════
 📝 FORMATO DE RESPOSTA (OBRIGATÓRIO):
 ═══════════════════════════════════════════════════════════════
 
@@ -300,9 +333,29 @@ REGRAS CRÍTICAS:
 5. O primeiro segmento (intro) deve ter hook forte
 6. O último segmento (outro) deve ter CTA claro
 
-EXEMPLO DE QUALIDADE:
-❌ RUIM: "Fale sobre o tópico de forma interessante"
-✅ BOM: "Você já se perguntou por que algumas pessoas conseguem resultados incríveis enquanto outras ficam estagnadas? A resposta está em um segredo que 95% das pessoas ignoram completamente."
+EXEMPLOS CONCRETOS DE QUALIDADE POR NICHO:
+
+NICHO: Marketing/Negócios
+❌ RUIM: "Vou falar sobre marketing digital"
+✅ BOM: "Empresas que usam esta estratégia aumentam conversão em 340%. Vou te mostrar exatamente como replicar isso em 3 passos simples."
+
+NICHO: Educação
+❌ RUIM: "Vou explicar como funciona"
+✅ BOM: "95% das pessoas não sabem que este método pode reduzir tempo de aprendizado em 60%. Descubra o segredo que professores top usam."
+
+NICHO: Entretenimento
+❌ RUIM: "Isso é interessante"
+✅ BOM: "Você não vai acreditar no que aconteceu quando testei isso. O resultado mudou TUDO que eu pensava sobre [tópico]."
+
+NICHO: Saúde/Fitness
+❌ RUIM: "Vou falar sobre exercícios"
+✅ BOM: "Este treino queima 450 calorias em 20 minutos. E o melhor: você pode fazer em casa, sem equipamentos. Vou te mostrar agora."
+
+REGRAS DE QUALIDADE:
+- SEMPRE use números específicos quando possível
+- SEMPRE mencione benefício/resultado concreto
+- NUNCA use frases genéricas como "é interessante" ou "vou falar sobre"
+- SEMPRE crie curiosidade gap no hook
 
 Retorne APENAS um objeto JSON com esta estrutura EXATA:
 {
@@ -330,6 +383,30 @@ IMPORTANTE:
 - A soma de todas as durações DEVE ser ${params.duration}
 - Cada "text" deve ser texto completo e específico, não descrição genérica`;
 
+  // Função para calcular temperature otimizada baseada no contexto
+  const getOptimalTemperature = (params: ScriptGenerationParams): number => {
+    // Mais criativo para entretenimento (precisa ser divertido e surpreendente)
+    if (params.style === 'entertaining') return 0.85;
+    
+    // Mais consistente para educacional (precisa ser preciso e didático)
+    if (params.style === 'educational') return 0.65;
+    
+    // Mais criativo quando há insights virais (replicar padrões virais)
+    if (params.viralInsights) return 0.8;
+    
+    // Mais criativo para promocional (precisa ser persuasivo)
+    if (params.style === 'promotional') return 0.75;
+    
+    // Documentário: balanceado
+    if (params.style === 'documentary') return 0.7;
+    
+    // Default
+    return 0.7;
+  };
+
+  // Calcular max_tokens baseado na duração (aproximadamente 30 tokens por segundo)
+  const estimatedTokens = Math.max(2000, params.duration * 30);
+
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -344,7 +421,11 @@ IMPORTANTE:
         },
       ],
       response_format: { type: 'json_object' },
-      temperature: params.viralInsights ? 0.8 : 0.7, // Mais criativo quando há insights virais
+      temperature: getOptimalTemperature(params),
+      max_tokens: estimatedTokens, // Garante tokens suficientes para roteiros longos
+      top_p: 0.95, // Permite mais diversidade nas escolhas
+      presence_penalty: 0.1, // Incentiva usar palavras novas
+      frequency_penalty: 0.1, // Evita repetição excessiva
     });
 
     const response = completion.choices[0]?.message?.content;

@@ -13,6 +13,20 @@ export interface VideoClip {
   source: string;
   type: 'video' | 'image' | 'text';
   effects?: string[];
+  // Edição avançada
+  speed?: number; // Velocidade de reprodução (0.25, 0.5, 1, 2, 4)
+  rotation?: number; // Rotação em graus (0, 90, 180, 270)
+  crop?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  colorAdjustments?: {
+    brightness: number; // -100 a 100
+    contrast: number; // -100 a 100
+    saturation: number; // -100 a 100
+  };
 }
 
 export interface Project {

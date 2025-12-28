@@ -14,6 +14,12 @@ import { YouTubeDownloader } from '../youtube/YouTubeDownloader';
 import { FileUploader } from '../upload/FileUploader';
 import { WorkflowGuide } from '../workflow/WorkflowGuide';
 import { DownloadsList } from '../downloads/DownloadsList';
+import { ExportButton } from './ExportButton';
+import { AutoCutPanel } from '../ai-editing/AutoCutPanel';
+import { NarrationPanel } from '../ai-editing/NarrationPanel';
+import { AutoCaptionsPanel } from '../ai-editing/AutoCaptionsPanel';
+import { TransitionsPanel } from '../ai-editing/TransitionsPanel';
+import { TextOverlaysPanel } from '../ai-editing/TextOverlaysPanel';
 
 export function MainEditor() {
   const { activePanel, setActivePanel } = useEditorStore();
@@ -171,6 +177,23 @@ export function MainEditor() {
                     </h2>
                     <EnhancedTimeline />
                   </div>
+
+                  {/* Edição por IA */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Edição por IA
+                    </h2>
+                    <div className="space-y-4">
+                      <AutoCutPanel />
+                      <NarrationPanel />
+                      <AutoCaptionsPanel />
+                      <TransitionsPanel />
+                      <TextOverlaysPanel />
+                    </div>
+                  </div>
+
+                  {/* Exportar Vídeo */}
+                  <ExportButton />
                 </div>
               )}
             </div>
