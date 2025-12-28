@@ -8,11 +8,11 @@ const getRemotionModules = async () => {
   if (typeof window !== 'undefined') {
     throw new Error('Remotion só pode ser usado no servidor');
   }
-  const [{ bundle }, { renderMedia }] = await Promise.all([
+  const [{ bundle }, { renderMedia, getCompositions }] = await Promise.all([
     import('@remotion/bundler'),
     import('@remotion/renderer'),
   ]);
-  return { bundle, renderMedia };
+  return { bundle, renderMedia, getCompositions };
 };
 
 const OUTPUT_DIR = path.join(process.cwd(), 'tmp', 'renders');
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     console.log('📦 Iniciando bundle do Remotion...');
     
     // Import dinâmico do Remotion
-    const { bundle: bundleFn, renderMedia: renderMediaFn } = await getRemotionModules();
+    const { bundle: bundleFn, renderMedia: renderMediaFn, getCompositions } = await getRemotionModules();
     
     // Bundle do Remotion
     const bundleLocation = await bundleFn({
@@ -61,7 +61,24 @@ export async function POST(request: NextRequest) {
       webpackOverride: (config) => config,
     });
 
-    console.log('✅ Bundle concluído. Iniciando renderização...');
+    console.log('✅ Bundle concluído. Buscando composição...');
+
+    // Buscar a composição do bundle
+    const compositions = await getCompositions(bundleLocation, {
+      inputProps: {
+        clips,
+        script: script || [],
+        transitions: transitions || [],
+        captions: captions || [],
+      },
+    });
+
+    const composition = compositions.find((c) => c.id === 'VideoComposition');
+    if (!composition) {
+      throw new Error('Composição VideoComposition não encontrada');
+    }
+
+    console.log('✅ Composição encontrada. Iniciando renderização...');
 
     // Caminho de saída
     const outputPath = path.join(
@@ -71,13 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Renderizar vídeo
     await renderMediaFn({
-      composition: {
-        id: 'VideoComposition',
-        width,
-        height,
-        fps,
-        durationInFrames,
-      },
+      composition,
       serveUrl: bundleLocation,
       codec: 'h264',
       outputLocation: outputPath,

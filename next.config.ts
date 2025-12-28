@@ -65,11 +65,8 @@ const nextConfig: NextConfig = {
   // O webpack será usado quando necessário (para Remotion)
   turbopack: {},
   
-  // Configurações experimentais para melhor compatibilidade
-  experimental: {
-    // Desabilitar otimizações que podem causar problemas com Remotion
-    serverComponentsExternalPackages: ['@remotion/bundler', '@remotion/renderer'],
-  },
+  // Manter Remotion como pacote externo (não incluir no bundle)
+  serverExternalPackages: ['@remotion/bundler', '@remotion/renderer'],
   
   // Configuração de output file tracing para excluir Remotion do bundle
   outputFileTracingExcludes: {
