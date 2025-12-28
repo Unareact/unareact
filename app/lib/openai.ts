@@ -7,9 +7,46 @@ const openai = new OpenAI({
 });
 
 export async function generateScript(params: ScriptGenerationParams): Promise<ScriptSegment[]> {
-  let prompt = `Crie um roteiro de vídeo ${params.style} com tom ${params.tone} sobre "${params.topic}".
+  // System prompt base - sempre aplicado
+  const systemPrompt = params.viralInsights
+    ? `Você é um ESPECIALISTA MUNDIAL em criação de roteiros de vídeo virais com 15+ anos de experiência. Você analisou MILHÕES de vídeos virais e identificou os padrões científicos que fazem conteúdo viralizar. Seu trabalho é criar roteiros que REPLICAM esses padrões de sucesso, adaptando-os ao tópico fornecido.
 
-O vídeo deve ter aproximadamente ${params.duration} segundos.`;
+PRINCÍPIOS FUNDAMENTAIS DE VIRALIZAÇÃO:
+1. HOOK nos primeiros 3-5 segundos é CRÍTICO (70% dos vídeos virais perdem espectadores após 5s se não houver hook forte)
+2. Curiosidade Gap: Criar perguntas na mente do espectador que só são respondidas assistindo
+3. Dopamina Hits: Múltiplos momentos de recompensa ao longo do vídeo (surpresas, revelações, insights)
+4. Ritmo: Manter atenção com mudanças a cada 3-7 segundos
+5. Emoção > Informação: Conteúdo emocional engaja 3x mais que apenas informativo
+6. Especificidade: Detalhes concretos são mais memoráveis que generalizações
+
+ESTRUTURAS NARRATIVAS VIRAIS COMPROVADAS:
+- Problema-Solução: Apresentar problema doloroso → Solução surpreendente
+- Storytelling 3-Act: Setup → Conflito → Resolução
+- Hook-Desenvolvimento-CTA: Gancho → Desenvolvimento → Call to Action
+- Lista/Top N: Número no título + Lista organizada
+- Transformação: Antes → Processo → Depois
+- Pergunta-Resposta: Pergunta intrigante → Resposta surpreendente
+- Comparação: A vs B com conclusão inesperada
+
+Use os insights virais fornecidos para replicar EXATAMENTE os padrões que funcionaram.`
+    : `Você é um ESPECIALISTA em criação de roteiros de vídeo altamente eficazes e envolventes. Você cria conteúdo que maximiza engajamento, retenção e compartilhamento.
+
+PRINCÍPIOS DE ROTEIROS EFICAZES:
+1. Hook forte nos primeiros 3-5 segundos
+2. Estrutura clara e progressiva
+3. Múltiplos pontos de interesse
+4. Call to action claro no final
+5. Tom apropriado para o público-alvo`;
+
+  let prompt = `Crie um ROTEIRO DE VÍDEO VIRAL otimizado para máximo engajamento e compartilhamento.
+
+═══════════════════════════════════════════════════════════════
+📋 ESPECIFICAÇÕES DO VÍDEO:
+═══════════════════════════════════════════════════════════════
+🎬 Tópico: "${params.topic}"
+⏱️ Duração: ${params.duration} segundos (CRÍTICO: respeitar exatamente)
+🎨 Estilo: ${params.style}
+🎭 Tom: ${params.tone}`;
 
   // Se houver insights virais, use-os para otimizar o roteiro
   if (params.viralInsights) {
@@ -18,73 +55,157 @@ O vídeo deve ter aproximadamente ${params.duration} segundos.`;
     prompt += `
 
 ═══════════════════════════════════════════════════════════════
-🎯 INSIGHTS DE VÍDEOS VIRAIS PARA OTIMIZAÇÃO:
+🔥 INSIGHTS DE VÍDEO VIRAL ANALISADO (REPLICAR ESTES PADRÕES):
 ═══════════════════════════════════════════════════════════════
 
-📊 POR QUE VIRALIZOU:
+📊 ANÁLISE DE VIRALIZAÇÃO:
 ${insights.whyItWentViral}
 
 🎣 HOOK EFICAZ (Primeiros ${editingRecommendations.introDuration}s):
 ${viralFactors.hook}
 
-⚡ RITMO RECOMENDADO:
+⚡ RITMO COMPROVADO:
 ${editingRecommendations.pacing}
 
-📐 ESTRUTURA QUE FUNCIONA:
+📐 ESTRUTURA NARRATIVA QUE FUNCIONOU:
 ${viralFactors.structure}
 
-💡 GATILHOS EMOCIONAIS:
+💡 GATILHOS EMOCIONAIS IDENTIFICADOS:
 ${viralFactors.emotionalTriggers.join(', ')}
 
-🎯 PADRÕES DE CONTEÚDO QUE FUNCIONAM:
+🎯 PADRÕES REPLICÁVEIS:
 ${insights.contentPatterns.join('\n- ')}
 
 📢 CALL TO ACTION EFICAZ:
 ${viralFactors.callToAction}
 
+🎨 RECOMENDAÇÕES DE EDIÇÃO:
+- Duração do intro: ${editingRecommendations.introDuration}s
+- Estilo de música: ${editingRecommendations.musicStyle}
+- Estilo visual: ${editingRecommendations.visualStyle}
+- Transições: ${editingRecommendations.transitions.join(', ')}
+
 ═══════════════════════════════════════════════════════════════
-🎬 INSTRUÇÕES PARA O ROTEIRO:
+🎯 INSTRUÇÕES CRÍTICAS PARA O ROTEIRO:
 ═══════════════════════════════════════════════════════════════
 
-1. Use o HOOK identificado como inspiração para os primeiros ${editingRecommendations.introDuration} segundos
-2. Siga a ESTRUTURA "${viralFactors.structure}" que funcionou no vídeo viral
-3. Mantenha o RITMO sugerido: ${editingRecommendations.pacing}
-4. Incorpore os GATILHOS EMOCIONAIS: ${viralFactors.emotionalTriggers.join(', ')}
-5. Use um CTA similar ao que funcionou: ${viralFactors.callToAction}
-6. Aplique os PADRÕES identificados: ${insights.contentPatterns.slice(0, 3).join(', ')}
+1. HOOK (Primeiros ${editingRecommendations.introDuration}s):
+   - REPLIQUE o padrão identificado: "${viralFactors.hook}"
+   - Crie curiosidade gap imediata
+   - Use palavras/estrutura similar ao vídeo viral
+   - Exemplo de estrutura: ${viralFactors.hook.substring(0, 100)}...
 
-IMPORTANTE: Adapte esses insights para o tópico "${params.topic}", mas mantenha os elementos que tornaram o vídeo viral eficaz.`;
+2. ESTRUTURA NARRATIVA:
+   - Siga EXATAMENTE a estrutura "${viralFactors.structure}"
+   - Adapte para o tópico "${params.topic}" mas mantenha o padrão
+   - Cada segmento deve ter propósito claro na estrutura
+
+3. RITMO E TIMING:
+   - ${editingRecommendations.pacing}
+   - Mude algo a cada 3-7 segundos (visual, tom, informação)
+   - Mantenha energia alta especialmente nos primeiros 30%
+
+4. GATILHOS EMOCIONAIS:
+   - Incorpore: ${viralFactors.emotionalTriggers.join(', ')}
+   - Cada segmento deve tocar em pelo menos uma emoção
+   - Use linguagem que desperte essas emoções
+
+5. PADRÕES DE CONTEÚDO:
+   - Aplique: ${insights.contentPatterns.slice(0, 5).join(', ')}
+   - Use técnicas específicas identificadas no vídeo viral
+
+6. CALL TO ACTION:
+   - Baseado em: "${viralFactors.callToAction}"
+   - Adapte para o tópico mas mantenha a estratégia
+   - Coloque nos últimos 5-10 segundos
+
+IMPORTANTE: Este roteiro deve REPLICAR os padrões virais identificados, adaptando-os para "${params.topic}". Não seja genérico - seja ESPECÍFICO e use os padrões exatos que funcionaram.`;
   } else {
     prompt += `
 
-Estruture o roteiro em segmentos claros com:
-- Introdução cativante (5-10 segundos)
-- Conteúdo principal dividido em partes lógicas
-- Conclusão/CTA (5-10 segundos)`;
+═══════════════════════════════════════════════════════════════
+🎬 ESTRUTURA RECOMENDADA PARA MÁXIMO ENGAJAMENTO:
+═══════════════════════════════════════════════════════════════
+
+SEGMENTO 1 - HOOK (3-5 segundos):
+- Abra com pergunta intrigante, afirmação surpreendente, ou cena impactante
+- Crie "curiosidade gap" - faça o espectador querer saber mais
+- Use linguagem direta e poderosa
+- Exemplo: "Você está fazendo isso errado há anos e não sabia" ou "Isso vai mudar tudo que você pensava sobre..."
+
+SEGMENTO 2 - SETUP/CONTEXTO (10-15% do vídeo):
+- Estabeleça o contexto rapidamente
+- Conecte com a experiência do espectador
+- Use exemplos específicos e concretos
+
+SEGMENTO 3 - DESENVOLVIMENTO (60-70% do vídeo):
+- Divida em 3-5 sub-segmentos com pontos-chave
+- Cada sub-segmento: 10-20 segundos
+- Mude algo a cada segmento (tom, ritmo, informação)
+- Use transições naturais entre ideias
+- Inclua exemplos, dados, ou histórias
+
+SEGMENTO 4 - CLÍMAX/INSIGHT (10-15% do vídeo):
+- Revele o insight principal ou conclusão
+- Crie momento "aha!" ou surpresa
+- Use linguagem memorável
+
+SEGMENTO 5 - CTA/CONCLUSÃO (5-10 segundos):
+- Call to action claro e específico
+- Reforce o valor principal
+- Deixe o espectador querendo mais`;
   }
 
   prompt += `
 
-Para cada segmento, forneça:
-- Texto do narrador/apresentador
-- Duração estimada em segundos
-- Tipo (intro, content, outro, transition)
+═══════════════════════════════════════════════════════════════
+📝 FORMATO DE RESPOSTA (OBRIGATÓRIO):
+═══════════════════════════════════════════════════════════════
 
-IMPORTANTE: Retorne APENAS um objeto JSON com a estrutura:
+Para cada segmento, forneça:
+- id: Identificador único (ex: "seg-1", "seg-2")
+- text: Texto COMPLETO e ESPECÍFICO do narrador/apresentador (não use placeholders genéricos)
+- duration: Duração EXATA em segundos (soma total deve ser ${params.duration}s)
+- timestamp: Tempo de início em segundos (0 para o primeiro, acumulativo)
+- type: "intro" | "content" | "outro" | "transition"
+
+REGRAS CRÍTICAS:
+1. A SOMA de todas as durações DEVE ser exatamente ${params.duration} segundos
+2. O texto deve ser ESPECÍFICO e PRONTO PARA USO (não genérico)
+3. Cada segmento deve ter propósito claro na narrativa
+4. Use transições naturais entre segmentos
+5. O primeiro segmento (intro) deve ter hook forte
+6. O último segmento (outro) deve ter CTA claro
+
+EXEMPLO DE QUALIDADE:
+❌ RUIM: "Fale sobre o tópico de forma interessante"
+✅ BOM: "Você já se perguntou por que algumas pessoas conseguem resultados incríveis enquanto outras ficam estagnadas? A resposta está em um segredo que 95% das pessoas ignoram completamente."
+
+Retorne APENAS um objeto JSON com esta estrutura EXATA:
 {
   "segments": [
     {
       "id": "seg-1",
-      "text": "Texto do segmento",
+      "text": "Texto completo e específico do segmento, pronto para narração",
       "duration": 5,
       "timestamp": 0,
       "type": "intro"
     },
+    {
+      "id": "seg-2",
+      "text": "Próximo segmento com conteúdo específico...",
+      "duration": 8,
+      "timestamp": 5,
+      "type": "content"
+    }
     ...
   ]
 }
 
-O campo "segments" deve ser um ARRAY de objetos. Cada objeto deve ter: id, text, duration, timestamp, type.`;
+IMPORTANTE: 
+- O campo "segments" DEVE ser um ARRAY
+- A soma de todas as durações DEVE ser ${params.duration}
+- Cada "text" deve ser texto completo e específico, não descrição genérica`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -92,9 +213,7 @@ O campo "segments" deve ser um ARRAY de objetos. Cada objeto deve ter: id, text,
       messages: [
         {
           role: 'system',
-          content: params.viralInsights 
-            ? 'Você é um especialista em criação de roteiros de vídeo virais. Use os insights fornecidos de vídeos que viralizaram para criar roteiros otimizados que replicam os padrões de sucesso.'
-            : 'Você é um especialista em criação de roteiros de vídeo altamente eficazes e envolventes.',
+          content: systemPrompt,
         },
         {
           role: 'user',
@@ -102,7 +221,7 @@ O campo "segments" deve ser um ARRAY de objetos. Cada objeto deve ter: id, text,
         },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: params.viralInsights ? 0.8 : 0.7, // Mais criativo quando há insights virais
     });
 
     const response = completion.choices[0]?.message?.content;
