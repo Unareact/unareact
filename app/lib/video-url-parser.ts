@@ -6,6 +6,11 @@ export interface ParsedVideoUrl {
   platform: 'youtube' | 'tiktok';
   videoId: string;
   isValid: boolean;
+  isChannel?: boolean;
+  channelHandle?: string;
+  channelId?: string;
+  channelType?: 'handle' | 'custom' | 'user' | 'channel' | 'tiktok-profile';
+  errorMessage?: string;
 }
 
 /**
@@ -59,6 +64,79 @@ function extractTikTokVideoId(url: string): string | null {
 }
 
 /**
+ * Detecta se é uma URL de canal do YouTube e extrai informações
+ */
+function isYouTubeChannelUrl(url: string): { 
+  isChannel: boolean; 
+  channelHandle?: string;
+  channelId?: string;
+  channelType?: 'handle' | 'custom' | 'user' | 'channel';
+} {
+  // Padrões de URL de canal do YouTube:
+  // https://www.youtube.com/@channelhandle
+  // https://www.youtube.com/c/channelname
+  // https://www.youtube.com/user/username
+  // https://www.youtube.com/channel/CHANNEL_ID
+  
+  const handleMatch = url.match(/youtube\.com\/@([\w.-]+)/);
+  if (handleMatch) {
+    return { 
+      isChannel: true, 
+      channelHandle: handleMatch[1],
+      channelType: 'handle'
+    };
+  }
+
+  const customMatch = url.match(/youtube\.com\/c\/([\w.-]+)/);
+  if (customMatch) {
+    return { 
+      isChannel: true, 
+      channelHandle: customMatch[1],
+      channelType: 'custom'
+    };
+  }
+
+  const userMatch = url.match(/youtube\.com\/user\/([\w.-]+)/);
+  if (userMatch) {
+    return { 
+      isChannel: true, 
+      channelHandle: userMatch[1],
+      channelType: 'user'
+    };
+  }
+
+  const channelIdMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
+  if (channelIdMatch) {
+    return { 
+      isChannel: true, 
+      channelId: channelIdMatch[1],
+      channelType: 'channel'
+    };
+  }
+
+  return { isChannel: false };
+}
+
+/**
+ * Detecta se é uma URL de perfil do TikTok
+ */
+function isTikTokProfileUrl(url: string): { isProfile: boolean; username?: string } {
+  // Padrões de URL de perfil do TikTok:
+  // https://www.tiktok.com/@username
+  // https://tiktok.com/@username
+  // https://vm.tiktok.com/@username (menos comum)
+  
+  const profilePattern = /tiktok\.com\/@([\w.-]+)(?:\/|$)/;
+  const match = url.match(profilePattern);
+  
+  if (match && match[1] && !url.includes('/video/')) {
+    return { isProfile: true, username: match[1] };
+  }
+
+  return { isProfile: false };
+}
+
+/**
  * Parse uma URL de vídeo e retorna informações estruturadas
  */
 export function parseVideoUrl(url: string): ParsedVideoUrl {
@@ -68,6 +146,33 @@ export function parseVideoUrl(url: string): ParsedVideoUrl {
 
   // Limpar espaços
   const cleanUrl = url.trim();
+
+  // Verificar se é URL de perfil do TikTok primeiro
+  const tiktokProfileCheck = isTikTokProfileUrl(cleanUrl);
+  if (tiktokProfileCheck.isProfile) {
+    return {
+      platform: 'tiktok',
+      videoId: '',
+      isValid: true, // Válido para buscar vídeos do perfil
+      isChannel: true,
+      channelHandle: tiktokProfileCheck.username,
+      channelType: 'tiktok-profile',
+    };
+  }
+
+  // Verificar se é URL de canal do YouTube
+  const channelCheck = isYouTubeChannelUrl(cleanUrl);
+  if (channelCheck.isChannel) {
+    return {
+      platform: 'youtube',
+      videoId: '',
+      isValid: true, // Agora é válido para buscar vídeos do canal
+      isChannel: true,
+      channelHandle: channelCheck.channelHandle,
+      channelId: channelCheck.channelId,
+      channelType: channelCheck.channelType,
+    };
+  }
 
   // Tentar YouTube primeiro
   const youtubeId = extractYouTubeVideoId(cleanUrl);
@@ -113,6 +218,7 @@ export function parseVideoUrl(url: string): ParsedVideoUrl {
     platform: 'youtube',
     videoId: '',
     isValid: false,
+    errorMessage: 'URL inválida. Use uma URL de vídeo do YouTube ou TikTok.',
   };
 }
 

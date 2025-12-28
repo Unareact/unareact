@@ -271,8 +271,68 @@ export function ViralVideoList() {
     try {
       // Parse da URL
       const parsed = parseVideoUrl(videoUrl);
+      
+      // Se for uma URL de canal/perfil, buscar vídeos do canal/perfil
+      if (parsed.isChannel && parsed.isValid) {
+        const isTikTok = parsed.platform === 'tiktok';
+        console.log(`📺 URL de ${isTikTok ? 'perfil TikTok' : 'canal YouTube'} detectada, buscando vídeos...`);
+        
+        const params = new URLSearchParams({
+          maxResults: '100', // Aumentar para ter mais opções após filtros
+          minLikes: minLikes.toString(),
+          maxDaysAgo: maxDaysAgo.toString(),
+          minLikesPerDay: minLikesPerDay.toString(),
+          sortBy: sortBy,
+          productCategory: productCategory, // Filtro de categoria de produto
+        });
+
+        if (parsed.channelId) {
+          params.append('channelId', parsed.channelId);
+          params.append('channelType', parsed.channelType || 'channel');
+        } else if (parsed.channelHandle) {
+          params.append('channelHandle', parsed.channelHandle);
+          params.append('channelType', parsed.channelType || (isTikTok ? 'tiktok-profile' : 'handle'));
+        }
+
+        // Filtros específicos do YouTube
+        if (!isTikTok) {
+          if (shortsOnly) {
+            params.append('shortsOnly', 'true');
+          }
+          // Categoria do YouTube (se aplicável)
+          if (category && category !== '0') {
+            params.append('category', category);
+          }
+        }
+
+        const channelResponse = await fetch(`/api/viral?${params.toString()}`);
+        
+        if (!channelResponse.ok) {
+          const errorData = await channelResponse.json();
+          throw new Error(errorData.error || `Erro ao buscar vídeos do ${isTikTok ? 'perfil' : 'canal'}`);
+        }
+
+        const channelData = await channelResponse.json();
+        
+        if (channelData.videos && channelData.videos.length > 0) {
+          setVideos(channelData.videos);
+          setStats({
+            total: channelData.total || channelData.videos.length,
+            filtered: channelData.filtersApplied ? Object.values(channelData.filtersApplied).some(v => v === true) : false,
+            regions: channelData.source === 'profile' ? `Perfil TikTok` : channelData.source === 'channel' ? `Canal YouTube` : 'Canal',
+          });
+          setUrlDiagnosis(null); // Não há diagnóstico para canal/perfil
+          setIsAnalyzingUrl(false);
+          return;
+        } else {
+          throw new Error(`Nenhum vídeo encontrado neste ${isTikTok ? 'perfil' : 'canal'}`);
+        }
+      }
+
       if (!parsed.isValid || !parsed.videoId) {
-        throw new Error('URL inválida. Use uma URL do YouTube ou TikTok.');
+        // Usar mensagem de erro específica se disponível (ex: URL de canal)
+        const errorMsg = parsed.errorMessage || 'URL inválida. Use uma URL de vídeo do YouTube ou TikTok.';
+        throw new Error(errorMsg);
       }
 
       // Diagnosticar o vídeo

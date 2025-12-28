@@ -20,8 +20,78 @@ export async function GET(request: NextRequest) {
     const minLikesPerDay = parseFloat(searchParams.get('minLikesPerDay') || '0');
     const shortsOnly = searchParams.get('shortsOnly') === 'true'; // Filtrar apenas YouTube Shorts
     const sortBy = searchParams.get('sortBy') || 'views'; // Padrão: mais views primeiro
+    
+    // Parâmetros para busca por canal
+    const channelHandle = searchParams.get('channelHandle');
+    const channelId = searchParams.get('channelId');
+    const channelType = searchParams.get('channelType') as 'handle' | 'custom' | 'user' | 'channel' | 'tiktok-profile' | null;
 
-    console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category, productCategory });
+    console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category, productCategory, channelHandle, channelId, channelType });
+
+    // Se houver parâmetros de canal, buscar vídeos do canal
+    if (channelHandle || channelId) {
+      const identifier = channelId || channelHandle || '';
+      const type = channelType || (channelId ? 'channel' : 'handle');
+      
+      // Se for perfil do TikTok
+      if (type === 'tiktok-profile') {
+        console.log('🎵 Buscando vídeos do perfil TikTok:', { username: identifier });
+        
+        const tiktokVideos = await getTikTokProfileVideos(
+          identifier,
+          maxResults,
+          minLikes,
+          maxDaysAgo,
+          minLikesPerDay,
+          sortBy,
+          productCategory
+        );
+
+        return NextResponse.json({
+          videos: tiktokVideos,
+          total: tiktokVideos.length,
+          platform: 'tiktok',
+          source: 'profile',
+          filtersApplied: {
+            minLikes: minLikes > 0,
+            maxDaysAgo: maxDaysAgo > 0,
+            minLikesPerDay: minLikesPerDay > 0,
+            productCategory: productCategory && productCategory !== 'all',
+            sortBy,
+          },
+        });
+      }
+      
+      // Se for canal do YouTube
+      console.log('📺 Buscando vídeos do canal YouTube:', { identifier, type });
+      
+      const channelVideos = await getYouTubeChannelVideos(
+        identifier,
+        type,
+        maxResults,
+        minLikes,
+        maxDaysAgo,
+        minLikesPerDay,
+        sortBy,
+        shortsOnly,
+        productCategory
+      );
+
+      return NextResponse.json({
+        videos: channelVideos,
+        total: channelVideos.length,
+        platform: 'youtube',
+        source: 'channel',
+        filtersApplied: {
+          minLikes: minLikes > 0,
+          maxDaysAgo: maxDaysAgo > 0,
+          minLikesPerDay: minLikesPerDay > 0,
+          shortsOnly: shortsOnly,
+          productCategory: productCategory && productCategory !== 'all',
+          sortBy,
+        },
+      });
+    }
 
     // Se for apenas TikTok, buscar só do TikTok
     if (platform === 'tiktok') {
@@ -736,6 +806,279 @@ async function getYouTubeVideos(
       },
       { status: 200 } // Retornar 200 com array vazio para não quebrar o frontend
     );
+  }
+}
+
+// Função para buscar vídeos de um perfil do TikTok
+async function getTikTokProfileVideos(
+  username: string,
+  maxResults: number,
+  minLikes: number,
+  maxDaysAgo: number,
+  minLikesPerDay: number,
+  sortBy: string,
+  productCategory: string = 'all'
+): Promise<ViralVideo[]> {
+  try {
+    console.log(`🎵 Buscando vídeos do perfil TikTok: @${username}`);
+    const tiktokService = new TikTokService();
+    
+    // Buscar mais vídeos para ter opções após filtros
+    let videos = await tiktokService.getUserVideos(username, maxResults * 3);
+    console.log(`📊 TikTok: ${videos.length} vídeos recebidos do perfil`);
+
+    // Aplicar filtros
+    if (minLikes > 0) {
+      videos = videos.filter(video => video.likeCount >= minLikes);
+    }
+
+    if (maxDaysAgo > 0) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - maxDaysAgo);
+      cutoffDate.setHours(0, 0, 0, 0);
+      
+      videos = videos.filter(video => {
+        const publishedDate = new Date(video.publishedAt);
+        publishedDate.setHours(0, 0, 0, 0);
+        return publishedDate >= cutoffDate;
+      });
+    }
+
+    if (minLikesPerDay > 0) {
+      videos = videos.filter(video => {
+        const likesPerDay = video.likesPerDay || 0;
+        return likesPerDay >= minLikesPerDay;
+      });
+    }
+
+    // Filtrar por categoria de produto
+    if (productCategory && productCategory !== 'all') {
+      const before = videos.length;
+      videos = videos.filter(video => matchesCategory(video, productCategory));
+      console.log(`Filtro de categoria de produto: ${before} → ${videos.length} vídeos`);
+    }
+
+    // Ordenar
+    const sortedVideos = sortVideos(videos, sortBy);
+    const finalVideos = sortedVideos.slice(0, maxResults);
+    
+    console.log(`✅ TikTok Perfil: ${finalVideos.length} vídeos finais (de ${videos.length} encontrados)`);
+    return finalVideos;
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar vídeos do perfil TikTok:', error);
+    return [];
+  }
+}
+
+// Função para buscar vídeos de um canal do YouTube
+async function getYouTubeChannelVideos(
+  channelIdentifier: string,
+  channelType: 'handle' | 'custom' | 'user' | 'channel',
+  maxResults: number,
+  minLikes: number,
+  maxDaysAgo: number,
+  minLikesPerDay: number,
+  sortBy: string,
+  shortsOnly: boolean = false,
+  productCategory: string = 'all'
+): Promise<ViralVideo[]> {
+  try {
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    
+    if (!apiKey) {
+      console.warn('⚠️ YouTube API Key não configurada');
+      return [];
+    }
+
+    let channelId: string | null = null;
+
+    // Se já temos o channelId, usar diretamente
+    if (channelType === 'channel') {
+      channelId = channelIdentifier;
+    } else {
+      // Precisamos buscar o channelId usando o handle/custom/user
+      console.log(`🔍 Buscando channelId para: ${channelIdentifier} (tipo: ${channelType})`);
+      
+      // Tentar buscar diretamente pelo handle usando channels.list (método mais direto)
+      if (channelType === 'handle') {
+        try {
+          const channelsResponse = await youtube.channels.list({
+            key: apiKey,
+            part: ['id'],
+            forHandle: channelIdentifier,
+          } as any);
+          
+          if (channelsResponse.data.items && channelsResponse.data.items.length > 0) {
+            channelId = channelsResponse.data.items[0].id || null;
+            console.log(`✅ ChannelId encontrado via forHandle: ${channelId}`);
+          }
+        } catch (error: any) {
+          console.warn('⚠️ Erro ao buscar por forHandle:', error.message);
+        }
+      }
+
+      // Se não encontrou pelo forHandle, tentar busca por texto
+      if (!channelId) {
+        let searchQuery = '';
+        if (channelType === 'handle') {
+          // Para @handle, usar o handle diretamente
+          searchQuery = `@${channelIdentifier}`;
+        } else {
+          // Para /c/ ou /user/, usar o identificador
+          searchQuery = channelIdentifier;
+        }
+
+        // Buscar o canal usando search.list
+        const searchResponse = await youtube.search.list({
+          key: apiKey,
+          part: ['snippet'],
+          q: searchQuery,
+          type: 'channel',
+          maxResults: 1,
+        } as any);
+
+        if (searchResponse.data.items && searchResponse.data.items.length > 0) {
+          channelId = searchResponse.data.items[0].id?.channelId || null;
+          console.log(`✅ ChannelId encontrado via search: ${channelId}`);
+        }
+      }
+
+      if (!channelId) {
+        console.error('❌ Não foi possível encontrar o channelId');
+        return [];
+      }
+    }
+
+    // Agora buscar os vídeos do canal usando search.list com channelId
+    console.log(`📹 Buscando vídeos do canal: ${channelId}`);
+    
+    const videosSearchResponse = await youtube.search.list({
+      key: apiKey,
+      part: ['snippet'],
+      channelId: channelId,
+      type: 'video',
+      maxResults: Math.min(maxResults * 3, 50), // Buscar mais para ter opções após filtros
+      order: 'date', // Ordenar por data (mais recentes primeiro)
+    } as any);
+
+    if (!videosSearchResponse.data.items || videosSearchResponse.data.items.length === 0) {
+      console.warn('⚠️ Nenhum vídeo encontrado no canal');
+      return [];
+    }
+
+    // Buscar estatísticas dos vídeos encontrados
+    const videoIds = videosSearchResponse.data.items
+      .map(item => item.id?.videoId)
+      .filter(Boolean) as string[];
+
+    if (videoIds.length === 0) {
+      return [];
+    }
+
+    const videosResponse = await youtube.videos.list({
+      key: apiKey,
+      part: ['snippet', 'statistics', 'contentDetails'],
+      id: videoIds,
+    });
+
+    // Converter para formato ViralVideo
+    const videos: ViralVideo[] = (videosResponse.data.items || []).map((item, index) => {
+      const snippet = item.snippet;
+      const statistics = item.statistics;
+      const contentDetails = item.contentDetails;
+
+      const views = parseInt(statistics?.viewCount || '0');
+      const likes = parseInt(statistics?.likeCount || '0');
+      const comments = parseInt(statistics?.commentCount || '0');
+      const publishedAt = snippet?.publishedAt ? new Date(snippet.publishedAt) : new Date();
+      const hoursSincePublished = (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60);
+      const daysSincePublished = hoursSincePublished / 24;
+      const likesPerDay = daysSincePublished > 0 ? likes / daysSincePublished : likes;
+      const engagement = views > 0 ? ((likes + comments) / views) * 100 : 0;
+      const timeBoost = hoursSincePublished < 24 ? 1.5 : hoursSincePublished < 168 ? 1.2 : 1;
+      const viralScore = ((views * 0.4) + (likes * 0.3) + (comments * 0.2) + (engagement * 0.1)) * timeBoost;
+
+      return {
+        id: item.id || '',
+        title: snippet?.title || 'Sem título',
+        description: snippet?.description || '',
+        thumbnail: snippet?.thumbnails?.high?.url || snippet?.thumbnails?.default?.url || '',
+        channelTitle: snippet?.channelTitle || 'Canal desconhecido',
+        channelId: snippet?.channelId || '',
+        publishedAt: snippet?.publishedAt || new Date().toISOString(),
+        viewCount: views,
+        likeCount: likes,
+        commentCount: comments,
+        duration: contentDetails?.duration || 'PT0S',
+        url: `https://www.youtube.com/watch?v=${item.id}`,
+        platform: 'youtube' as const,
+        viralScore: Math.round(viralScore),
+        trendingRank: index + 1,
+        daysSincePublished: Math.round(daysSincePublished * 10) / 10,
+        likesPerDay: Math.round(likesPerDay),
+      };
+    });
+
+    // Aplicar filtros
+    let filteredVideos = [...videos];
+
+    // Filtrar Shorts
+    if (shortsOnly) {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => {
+        const durationSeconds = parseDurationToSeconds(video.duration);
+        return durationSeconds > 0 && durationSeconds <= 60;
+      });
+      console.log(`Filtro de Shorts: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Filtrar por curtidas
+    if (minLikes > 0) {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => video.likeCount >= minLikes);
+      console.log(`Filtro de curtidas: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Filtrar por data
+    if (maxDaysAgo > 0) {
+      const before = filteredVideos.length;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - maxDaysAgo);
+      cutoffDate.setHours(0, 0, 0, 0);
+      filteredVideos = filteredVideos.filter(video => {
+        const publishedDate = new Date(video.publishedAt);
+        publishedDate.setHours(0, 0, 0, 0);
+        return publishedDate >= cutoffDate;
+      });
+      console.log(`Filtro de data: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Filtrar por crescimento
+    if (minLikesPerDay > 0) {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => {
+        const likesPerDay = video.likesPerDay || 0;
+        return likesPerDay >= minLikesPerDay;
+      });
+      console.log(`Filtro de crescimento: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Filtrar por categoria de produto
+    if (productCategory && productCategory !== 'all') {
+      const before = filteredVideos.length;
+      filteredVideos = filteredVideos.filter(video => matchesCategory(video, productCategory));
+      console.log(`Filtro de categoria de produto: ${before} → ${filteredVideos.length} vídeos`);
+    }
+
+    // Ordenar
+    const sortedVideos = sortVideos(filteredVideos, sortBy);
+    const finalVideos = sortedVideos.slice(0, maxResults);
+    
+    console.log(`✅ Canal: ${finalVideos.length} vídeos finais (de ${videos.length} encontrados)`);
+    return finalVideos;
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar vídeos do canal:', error);
+    return [];
   }
 }
 

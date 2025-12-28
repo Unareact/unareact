@@ -8,6 +8,71 @@ export class TikTokService {
   private apiHost = process.env.TIKTOK_RAPIDAPI_HOST;
 
   /**
+   * Busca vídeos de um usuário específico do TikTok
+   * @param username - Nome de usuário (sem @)
+   * @param count - Quantidade de vídeos (padrão: 20)
+   * @returns Array de vídeos do usuário normalizados
+   */
+  async getUserVideos(username: string, count: number = 20): Promise<ViralVideo[]> {
+    if (!this.apiKey || !this.apiHost) {
+      console.warn('⚠️ TikTok API Key ou Host não configurados - retornando array vazio');
+      return [];
+    }
+
+    // Remover @ se presente
+    const cleanUsername = username.replace('@', '');
+
+    try {
+      // Tentar diferentes endpoints possíveis
+      const endpoints = [
+        `/api/user/posts?username=${cleanUsername}&count=${count}`,
+        `/api/user/popular-posts?username=${cleanUsername}&count=${count}`,
+        `/api/user/videos?username=${cleanUsername}&count=${count}`,
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const url = `https://${this.apiHost}${endpoint}`;
+          
+          console.log('TikTok API Request (User):', {
+            url,
+            username: cleanUsername,
+            host: this.apiHost,
+          });
+
+          const response = await fetch(url, {
+            headers: {
+              'x-rapidapi-host': this.apiHost,
+              'x-rapidapi-key': this.apiKey,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('TikTok API Response (User):', {
+              status: response.status,
+              hasData: !!data,
+            });
+
+            // Normalizar os dados para o formato ViralVideo
+            return this.normalize(data);
+          } else {
+            console.warn(`Endpoint ${endpoint} retornou ${response.status}, tentando próximo...`);
+          }
+        } catch (error: any) {
+          console.warn(`Erro ao tentar endpoint ${endpoint}:`, error.message);
+          continue;
+        }
+      }
+
+      throw new Error('Nenhum endpoint de usuário funcionou. Verifique se a API suporta busca por usuário.');
+    } catch (error: any) {
+      console.error('Erro ao buscar vídeos do usuário do TikTok:', error);
+      throw new Error(`Erro ao buscar vídeos do usuário: ${error.message}`);
+    }
+  }
+
+  /**
    * Busca vídeos trending do TikTok
    * @param count - Quantidade de vídeos (padrão: 20)
    * @returns Array de vídeos trending normalizados
