@@ -27,12 +27,14 @@ export async function GET(request: NextRequest) {
       return await getTikTokVideos(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy);
     }
 
+    // Se regionParam contém vírgulas, é uma lista de países
+    const regions = regionParam.includes(',') ? regionParam.split(',').map(r => r.trim()) : regionParam;
+
     // Se for 'all', buscar de ambas as plataformas
     if (platform === 'all') {
       console.log('📱 Buscando de todas as plataformas...');
-      const regionParam = searchParams.get('region') || 'ALL_AMERICAS';
       const [youtubeResult, tiktokResult] = await Promise.allSettled([
-        getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly),
+        getYouTubeVideosData(regions, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly),
         getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy),
       ]);
 
