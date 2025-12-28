@@ -666,10 +666,10 @@ export function ViralVideoList() {
                   onClick={() => {
                     addClip({
                       id: `clip-${video.id}`,
-                      url: video.url,
-                      title: video.title,
-                      thumbnail: video.thumbnail,
-                      duration: 0,
+                      startTime: 0,
+                      endTime: parseDuration(video.duration),
+                      source: video.url,
+                      type: 'video',
                       startTime: 0,
                       endTime: 0,
                       platform: video.platform,
