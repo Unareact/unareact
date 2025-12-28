@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { ScriptSegment, ScriptGenerationParams, ViralDiagnosis } from '@/app/types';
+import { detectNiche, getNicheConfig, type NicheConfig } from './niche-detector';
 
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
@@ -7,9 +8,18 @@ const openai = new OpenAI({
 });
 
 export async function generateScript(params: ScriptGenerationParams): Promise<ScriptSegment[]> {
+  // Detectar nicho automaticamente
+  const detectedNiche = detectNiche(params.topic);
+  const nicheConfig = getNicheConfig(detectedNiche);
+
   // System prompt base - sempre aplicado
   const systemPrompt = params.viralInsights
-    ? `Você é um ESPECIALISTA MUNDIAL em criação de roteiros de vídeo virais com 15+ anos de experiência. Você analisou MILHÕES de vídeos virais e identificou os padrões científicos que fazem conteúdo viralizar. Seu trabalho é criar roteiros que REPLICAM esses padrões de sucesso, adaptando-os ao tópico fornecido.
+    ? `Você é um ESPECIALISTA MUNDIAL em criação de roteiros de vídeo virais com 15+ anos de experiência. Você analisou MILHÕES de vídeos virais e identificou os padrões científicos que fazem conteúdo viralizar. Seu trabalho é criar roteiros que REPLICAM esses padrões de sucesso, adaptando-os ao tópico e nicho fornecido.
+
+NICHO IDENTIFICADO: ${nicheConfig.name}
+ESTRUTURAS PREFERIDAS PARA ESTE NICHO: ${nicheConfig.preferredStructures.join(', ')}
+TÉCNICAS-CHAVE: ${nicheConfig.keyTechniques.join(' | ')}
+ESTILO DE LINGUAGEM: ${nicheConfig.languageStyle}
 
 PRINCÍPIOS FUNDAMENTAIS DE VIRALIZAÇÃO:
 1. HOOK nos primeiros 3-5 segundos é CRÍTICO (70% dos vídeos virais perdem espectadores após 5s se não houver hook forte)
@@ -19,24 +29,20 @@ PRINCÍPIOS FUNDAMENTAIS DE VIRALIZAÇÃO:
 5. Emoção > Informação: Conteúdo emocional engaja 3x mais que apenas informativo
 6. Especificidade: Detalhes concretos são mais memoráveis que generalizações
 
-ESTRUTURAS NARRATIVAS VIRAIS COMPROVADAS:
-- Problema-Solução: Apresentar problema doloroso → Solução surpreendente
-- Storytelling 3-Act: Setup → Conflito → Resolução
-- Hook-Desenvolvimento-CTA: Gancho → Desenvolvimento → Call to Action
-- Lista/Top N: Número no título + Lista organizada
-- Transformação: Antes → Processo → Depois
-- Pergunta-Resposta: Pergunta intrigante → Resposta surpreendente
-- Comparação: A vs B com conclusão inesperada
-
-Use os insights virais fornecidos para replicar EXATAMENTE os padrões que funcionaram.`
+Use os insights virais fornecidos para replicar EXATAMENTE os padrões que funcionaram, adaptando-os ao nicho ${nicheConfig.name}.`
     : `Você é um ESPECIALISTA em criação de roteiros de vídeo altamente eficazes e envolventes. Você cria conteúdo que maximiza engajamento, retenção e compartilhamento.
+
+NICHO IDENTIFICADO: ${nicheConfig.name}
+ESTRUTURAS PREFERIDAS: ${nicheConfig.preferredStructures.join(', ')}
+TÉCNICAS-CHAVE: ${nicheConfig.keyTechniques.join(' | ')}
+ESTILO DE LINGUAGEM: ${nicheConfig.languageStyle}
 
 PRINCÍPIOS DE ROTEIROS EFICAZES:
 1. Hook forte nos primeiros 3-5 segundos
-2. Estrutura clara e progressiva
+2. Estrutura clara e progressiva (preferencialmente: ${nicheConfig.preferredStructures[0]})
 3. Múltiplos pontos de interesse
 4. Call to action claro no final
-5. Tom apropriado para o público-alvo`;
+5. Tom apropriado para o nicho ${nicheConfig.name}`;
 
   let prompt = `Crie um ROTEIRO DE VÍDEO VIRAL otimizado para máximo engajamento e compartilhamento.
 
@@ -44,9 +50,31 @@ PRINCÍPIOS DE ROTEIROS EFICAZES:
 📋 ESPECIFICAÇÕES DO VÍDEO:
 ═══════════════════════════════════════════════════════════════
 🎬 Tópico: "${params.topic}"
+🎯 Nicho Detectado: ${nicheConfig.name}
 ⏱️ Duração: ${params.duration} segundos (CRÍTICO: respeitar exatamente)
 🎨 Estilo: ${params.style}
-🎭 Tom: ${params.tone}`;
+🎭 Tom: ${params.tone}
+
+═══════════════════════════════════════════════════════════════
+🎯 CONFIGURAÇÕES ESPECÍFICAS DO NICHO "${nicheConfig.name}":
+═══════════════════════════════════════════════════════════════
+📐 Estruturas Narrativas Preferidas:
+${nicheConfig.preferredStructures.map(s => `- ${s}`).join('\n')}
+
+🔑 Técnicas-Chave para Este Nicho:
+${nicheConfig.keyTechniques.map(t => `- ${t}`).join('\n')}
+
+💬 Estilo de Linguagem:
+${nicheConfig.languageStyle}
+
+🎣 Exemplos de Hooks Eficazes para Este Nicho:
+${nicheConfig.hookExamples.map(e => `- ${e}`).join('\n')}
+
+⚡ Orientação de Ritmo:
+${nicheConfig.pacingGuidance}
+
+📢 Estilo de CTA Recomendado:
+${nicheConfig.ctaStyle}`;
 
   // Se houver insights virais, use-os para otimizar o roteiro
   if (params.viralInsights) {
@@ -124,35 +152,40 @@ IMPORTANTE: Este roteiro deve REPLICAR os padrões virais identificados, adaptan
     prompt += `
 
 ═══════════════════════════════════════════════════════════════
-🎬 ESTRUTURA RECOMENDADA PARA MÁXIMO ENGAJAMENTO:
+🎬 ESTRUTURA RECOMENDADA PARA O NICHO "${nicheConfig.name}":
 ═══════════════════════════════════════════════════════════════
 
+ESTRUTURA PREFERIDA: ${nicheConfig.preferredStructures[0]}
+
 SEGMENTO 1 - HOOK (3-5 segundos):
-- Abra com pergunta intrigante, afirmação surpreendente, ou cena impactante
+- Use um dos exemplos de hook para este nicho:
+${nicheConfig.hookExamples.map(e => `  • ${e}`).join('\n')}
 - Crie "curiosidade gap" - faça o espectador querer saber mais
-- Use linguagem direta e poderosa
-- Exemplo: "Você está fazendo isso errado há anos e não sabia" ou "Isso vai mudar tudo que você pensava sobre..."
+- Use linguagem específica do nicho ${nicheConfig.name}
+- ${nicheConfig.languageStyle}
 
 SEGMENTO 2 - SETUP/CONTEXTO (10-15% do vídeo):
-- Estabeleça o contexto rapidamente
-- Conecte com a experiência do espectador
-- Use exemplos específicos e concretos
+- Estabeleça o contexto rapidamente usando técnicas do nicho
+- Conecte com a experiência do público-alvo deste nicho
+- Use exemplos específicos e concretos relevantes para ${nicheConfig.name}
 
 SEGMENTO 3 - DESENVOLVIMENTO (60-70% do vídeo):
+- Aplique as técnicas-chave do nicho:
+${nicheConfig.keyTechniques.slice(0, 3).map(t => `  • ${t}`).join('\n')}
 - Divida em 3-5 sub-segmentos com pontos-chave
 - Cada sub-segmento: 10-20 segundos
+- ${nicheConfig.pacingGuidance}
 - Mude algo a cada segmento (tom, ritmo, informação)
 - Use transições naturais entre ideias
-- Inclua exemplos, dados, ou histórias
 
 SEGMENTO 4 - CLÍMAX/INSIGHT (10-15% do vídeo):
 - Revele o insight principal ou conclusão
 - Crie momento "aha!" ou surpresa
-- Use linguagem memorável
+- Use linguagem memorável e específica do nicho
 
 SEGMENTO 5 - CTA/CONCLUSÃO (5-10 segundos):
-- Call to action claro e específico
-- Reforce o valor principal
+- ${nicheConfig.ctaStyle}
+- Reforce o valor principal para o nicho ${nicheConfig.name}
 - Deixe o espectador querendo mais`;
   }
 
