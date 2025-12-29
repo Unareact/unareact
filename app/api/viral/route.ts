@@ -1170,7 +1170,8 @@ async function getYouTubeChannelVideos(
   minLikesPerDay: number,
   sortBy: string,
   shortsOnly: boolean = false,
-  productCategory: string = 'all'
+  productCategory: string = 'all',
+  excludeAI: boolean = false
 ): Promise<ViralVideo[]> {
   try {
     const apiKey = process.env.YOUTUBE_API_KEY;
