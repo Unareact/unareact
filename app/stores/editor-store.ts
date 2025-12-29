@@ -23,6 +23,12 @@ interface EditorState {
   selectedClipId: string | null;
   pendingDownloadUrl: string | null; // URL do vídeo para download
   
+  // Undo/Redo
+  history: Array<{ clips: VideoClip[]; script: ScriptSegment[] }>;
+  historyIndex: number;
+  maxHistorySize: number;
+  isUndoRedo: boolean;
+  
   // Actions
   setCurrentProject: (project: Project | null) => void;
   setScript: (script: ScriptSegment[]) => void;
@@ -43,9 +49,17 @@ interface EditorState {
   setIsGeneratingScript: (generating: boolean) => void;
   setCurrentViralDiagnosis: (diagnosis: ViralDiagnosis | null) => void;
   setPendingDownloadUrl: (url: string | null) => void;
+  
+  // Undo/Redo Actions
+  saveToHistory: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  setIsUndoRedo: (value: boolean) => void;
 }
 
-export const useEditorStore = create<EditorState>((set) => ({
+export const useEditorStore = create<EditorState>((set, get) => ({
   // Estado inicial
   currentProject: null,
   script: [],
@@ -59,27 +73,42 @@ export const useEditorStore = create<EditorState>((set) => ({
   currentViralDiagnosis: null,
   pendingDownloadUrl: null,
   
+  // Undo/Redo
+  history: [{ clips: [], script: [] }], // Estado inicial
+  historyIndex: 0,
+  maxHistorySize: 50,
+  isUndoRedo: false, // Flag para evitar salvar durante undo/redo
+  
   // Actions
   setCurrentProject: (project) => set({ currentProject: project }),
   
-  setScript: (script) => set({ script }),
+  setScript: (script) => {
+    set({ script });
+    get().saveToHistory();
+  },
   
   addScriptSegment: (segment) =>
-    set((state) => ({
-      script: [...state.script, segment],
-    })),
+    set((state) => {
+      const newScript = [...state.script, segment];
+      setTimeout(() => get().saveToHistory(), 0);
+      return { script: newScript };
+    }),
   
   updateScriptSegment: (id, updates) =>
-    set((state) => ({
-      script: state.script.map((seg) =>
+    set((state) => {
+      const newScript = state.script.map((seg) =>
         seg.id === id ? { ...seg, ...updates } : seg
-      ),
-    })),
+      );
+      setTimeout(() => get().saveToHistory(), 0);
+      return { script: newScript };
+    }),
   
   deleteScriptSegment: (id) =>
-    set((state) => ({
-      script: state.script.filter((seg) => seg.id !== id),
-    })),
+    set((state) => {
+      const newScript = state.script.filter((seg) => seg.id !== id);
+      setTimeout(() => get().saveToHistory(), 0);
+      return { script: newScript };
+    }),
   
   addClip: (clip) =>
     set((state) => ({
@@ -98,7 +127,10 @@ export const useEditorStore = create<EditorState>((set) => ({
       clips: state.clips.filter((clip) => clip.id !== id),
     })),
   
-  setClips: (clips) => set({ clips }),
+  setClips: (clips) => {
+    set({ clips });
+    get().saveToHistory();
+  },
   
   setCurrentTime: (time) => set({ currentTime: time }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
@@ -108,5 +140,86 @@ export const useEditorStore = create<EditorState>((set) => ({
   setIsGeneratingScript: (generating) => set({ isGeneratingScript: generating }),
   setCurrentViralDiagnosis: (diagnosis) => set({ currentViralDiagnosis: diagnosis }),
   setPendingDownloadUrl: (url) => set({ pendingDownloadUrl: url }),
+  
+  // Undo/Redo
+  setIsUndoRedo: (value) => set({ isUndoRedo: value }),
+  
+  saveToHistory: () => {
+    const state = get();
+    // Não salvar se estiver fazendo undo/redo
+    if (state.isUndoRedo) return;
+    
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    const currentState = {
+      clips: JSON.parse(JSON.stringify(state.clips)),
+      script: JSON.parse(JSON.stringify(state.script)),
+    };
+    
+    // Não salvar se o estado for igual ao último
+    const lastState = newHistory[newHistory.length - 1];
+    if (
+      lastState &&
+      JSON.stringify(lastState.clips) === JSON.stringify(currentState.clips) &&
+      JSON.stringify(lastState.script) === JSON.stringify(currentState.script)
+    ) {
+      return;
+    }
+    
+    newHistory.push(currentState);
+    
+    // Limitar tamanho do histórico
+    if (newHistory.length > state.maxHistorySize) {
+      newHistory.shift();
+    } else {
+      // Apenas incrementar o índice se não estiver no final
+      if (state.historyIndex < newHistory.length - 1) {
+        // Se houver histórico futuro, descartá-lo
+        newHistory.splice(state.historyIndex + 1);
+      }
+    }
+    
+    set({
+      history: newHistory,
+      historyIndex: newHistory.length - 1,
+    });
+  },
+  
+  undo: () => {
+    const state = get();
+    if (state.historyIndex > 0) {
+      set({ isUndoRedo: true });
+      const previousState = state.history[state.historyIndex - 1];
+      set({
+        clips: JSON.parse(JSON.stringify(previousState.clips)),
+        script: JSON.parse(JSON.stringify(previousState.script)),
+        historyIndex: state.historyIndex - 1,
+        isUndoRedo: false,
+      });
+    }
+  },
+  
+  redo: () => {
+    const state = get();
+    if (state.historyIndex < state.history.length - 1) {
+      set({ isUndoRedo: true });
+      const nextState = state.history[state.historyIndex + 1];
+      set({
+        clips: JSON.parse(JSON.stringify(nextState.clips)),
+        script: JSON.parse(JSON.stringify(nextState.script)),
+        historyIndex: state.historyIndex + 1,
+        isUndoRedo: false,
+      });
+    }
+  },
+  
+  canUndo: () => {
+    const state = get();
+    return state.historyIndex > 0;
+  },
+  
+  canRedo: () => {
+    const state = get();
+    return state.historyIndex < state.history.length - 1;
+  },
 }));
 

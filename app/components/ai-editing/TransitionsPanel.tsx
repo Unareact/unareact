@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { suggestTransitions, applyTransitions, type Transition } from '@/app/lib/ai-editing/transitions';
-import { Film, CheckCircle2, X, Loader2, AlertCircle, Play } from 'lucide-react';
+import { Film, CheckCircle2, X, Loader2, AlertCircle, Play, Eye } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
+import { TransitionPreview } from '../editor/TransitionPreview';
 
 export function TransitionsPanel() {
   const { clips, script, setClips } = useEditorStore();
@@ -14,6 +15,7 @@ export function TransitionsPanel() {
   const [isApplying, setIsApplying] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewingTransition, setPreviewingTransition] = useState<Transition | null>(null);
 
   const handleGenerate = async () => {
     if (clips.length < 2) {
@@ -227,22 +229,31 @@ export function TransitionsPanel() {
                         {suggestion.type}
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleToggleApproval(suggestion.id)}
-                      className={cn(
-                        'p-2 rounded-lg transition-all flex-shrink-0',
-                        isApproved
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      )}
-                      title={isApproved ? 'Desaprovar' : 'Aprovar'}
-                    >
-                      {isApproved ? (
-                        <CheckCircle2 className="w-5 h-5" />
-                      ) : (
-                        <X className="w-5 h-5" />
-                      )}
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => setPreviewingTransition(suggestion)}
+                        className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-all"
+                        title="Preview da transição"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleToggleApproval(suggestion.id)}
+                        className={cn(
+                          'p-2 rounded-lg transition-all',
+                          isApproved
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        )}
+                        title={isApproved ? 'Desaprovar' : 'Aprovar'}
+                      >
+                        {isApproved ? (
+                          <CheckCircle2 className="w-5 h-5" />
+                        ) : (
+                          <CheckCircle2 className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -275,6 +286,14 @@ export function TransitionsPanel() {
             </button>
           )}
         </div>
+      )}
+
+      {/* Preview de Transição */}
+      {previewingTransition && (
+        <TransitionPreview
+          transition={previewingTransition}
+          onClose={() => setPreviewingTransition(null)}
+        />
       )}
     </div>
   );

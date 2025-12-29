@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useEditorStore } from '@/app/stores/editor-store';
+import { useKeyboardShortcuts } from '@/app/hooks/useKeyboardShortcuts';
 import { ScriptGenerator } from '../script/ScriptGenerator';
 import { ScriptEditor } from '../script/ScriptEditor';
 import { VideoPlayer } from '../player/VideoPlayer';
@@ -21,11 +22,19 @@ import { NarrationPanel } from '../ai-editing/NarrationPanel';
 import { AutoCaptionsPanel } from '../ai-editing/AutoCaptionsPanel';
 import { TransitionsPanel } from '../ai-editing/TransitionsPanel';
 import { TextOverlaysPanel } from '../ai-editing/TextOverlaysPanel';
+import { AutoMediaSelector } from '../media/AutoMediaSelector';
+import { AIImageGenerator } from '../media/AIImageGenerator';
+import { AutoAssembly } from '../workflow/AutoAssembly';
+import { VisualTemplateSelector } from '../templates/VisualTemplateSelector';
+import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 
 export function MainEditor() {
   const { activePanel, setActivePanel, script, setScript } = useEditorStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
+  
+  // Ativar atalhos de teclado
+  useKeyboardShortcuts();
 
   // Restaurar painel e roteiro do localStorage ao carregar
   useEffect(() => {
@@ -246,6 +255,26 @@ export function MainEditor() {
                     <EnhancedTimeline />
                   </div>
 
+                  {/* Mídia Automática */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Mídia Automática
+                    </h2>
+                    <div className="space-y-4">
+                      <AutoMediaSelector />
+                      <AIImageGenerator />
+                      <AutoAssembly />
+                    </div>
+                  </div>
+
+                  {/* Templates Visuais */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Templates
+                    </h2>
+                    <VisualTemplateSelector />
+                  </div>
+
                   {/* Edição por IA */}
                   <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
                     <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -299,6 +328,9 @@ export function MainEditor() {
           </div>
         )}
       </div>
+
+      {/* Ajuda de Atalhos de Teclado */}
+      <KeyboardShortcutsHelp />
     </div>
   );
 }

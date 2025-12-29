@@ -102,6 +102,16 @@ export function TextOverlaysPanel() {
         )}
       </button>
 
+      {/* Mensagem de Sucesso */}
+      {successMessage && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-green-800 dark:text-green-300">
+            <CheckCircle2 className="w-5 h-5" />
+            <p className="text-sm font-medium">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
       {/* Erro */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
@@ -142,8 +152,7 @@ export function TextOverlaysPanel() {
             </div>
           </div>
 
-          {previewVisible && (
-            <div className="space-y-2 max-h-96 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <div className="space-y-2 max-h-96 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
               {suggestions.map((text) => {
                 const isApproved = approvedTexts.has(text.id);
                 const confidenceColor =
@@ -228,8 +237,7 @@ export function TextOverlaysPanel() {
                   </div>
                 );
               })}
-            </div>
-          )}
+          </div>
 
           {/* Botão de Aplicar */}
           {approvedTexts.size > 0 && (
@@ -240,15 +248,29 @@ export function TextOverlaysPanel() {
                 setSuccessMessage(null);
                 
                 try {
-                  // Aplicar textos aprovados (por enquanto apenas salvar no store)
+                  // Aplicar textos aprovados
                   const toApply = suggestions.filter(s => approvedTexts.has(s.id));
                   console.log('Aplicando textos:', toApply);
                   
-                  // TODO: Salvar no store para renderização
+                  // Salvar no store temporário para preview
+                  if (typeof window !== 'undefined') {
+                    // @ts-ignore - Store temporário
+                    window.textOverlaysStore = {
+                      overlays: toApply.map(t => ({
+                        id: t.id,
+                        text: t.text,
+                        startTime: t.startTime,
+                        endTime: t.endTime,
+                        position: t.position,
+                        style: t.style,
+                      })),
+                    };
+                  }
+                  
                   await new Promise(resolve => setTimeout(resolve, 500));
                   
-                  setSuccessMessage(`✅ ${toApply.length} texto(s) aplicado(s) com sucesso!`);
-                  setTimeout(() => setSuccessMessage(null), 3000);
+                  setSuccessMessage(`✅ ${toApply.length} texto(s) aplicado(s) com sucesso! Veja o preview ao lado.`);
+                  setTimeout(() => setSuccessMessage(null), 5000);
                 } catch (err: any) {
                   setError(err.message || 'Erro ao aplicar textos');
                 } finally {
