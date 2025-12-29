@@ -5,11 +5,33 @@ import { useEditorStore } from '@/app/stores/editor-store';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
+// Função para obter textos sobrepostos do store global
+const getTextOverlays = () => {
+  if (typeof window !== 'undefined' && (window as any).textOverlaysStore) {
+    return (window as any).textOverlaysStore.overlays || [];
+  }
+  return [];
+};
+
 export function VideoPlayer() {
   const { clips, currentTime, duration, isPlaying, setIsPlaying, setCurrentTime, setDuration } = useEditorStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentClipSource, setCurrentClipSource] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [textOverlays, setTextOverlays] = useState<any[]>([]);
+  
+  // Atualizar textos sobrepostos quando mudarem
+  useEffect(() => {
+    const updateOverlays = () => {
+      const overlays = getTextOverlays();
+      setTextOverlays(overlays);
+    };
+    
+    updateOverlays();
+    const interval = setInterval(updateOverlays, 500); // Atualizar a cada 500ms
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Encontrar clip atual baseado no tempo
   const currentClip = clips.find(
@@ -129,32 +151,65 @@ export function VideoPlayer() {
   return (
     <div className="bg-gray-900 rounded-lg overflow-hidden w-full relative z-10">
       {/* Preview Area - Ocupa 50% da página */}
-      <div className="aspect-video bg-gray-800 flex items-center justify-center relative w-full">
+      <div className="aspect-video bg-gray-800 flex items-center justify-center relative w-full overflow-hidden">
         {currentClipSource ? (
-          <video
-            ref={videoRef}
-            src={currentClipSource}
-            className="w-full h-full object-contain"
-            onError={handleVideoError}
-            onLoadedMetadata={() => {
-              const video = videoRef.current;
-              if (video && currentClip) {
-                const relativeTime = currentTime - currentClip.startTime;
-                video.currentTime = Math.max(0, Math.min(currentClip.endTime - currentClip.startTime, relativeTime));
-                
-                // Detectar se o vídeo tem faixas de áudio e legendas
-                if (video.textTracks && video.textTracks.length > 0) {
-                  console.log(`📝 Vídeo tem ${video.textTracks.length} faixa(s) de legenda embutida(s)`);
+          <>
+            <video
+              ref={videoRef}
+              src={currentClipSource}
+              className="w-full h-full object-contain"
+              onError={handleVideoError}
+              onLoadedMetadata={() => {
+                const video = videoRef.current;
+                if (video && currentClip) {
+                  const relativeTime = currentTime - currentClip.startTime;
+                  video.currentTime = Math.max(0, Math.min(currentClip.endTime - currentClip.startTime, relativeTime));
+                  
+                  // Detectar se o vídeo tem faixas de áudio e legendas
+                  if (video.textTracks && video.textTracks.length > 0) {
+                    console.log(`📝 Vídeo tem ${video.textTracks.length} faixa(s) de legenda embutida(s)`);
+                  }
+                  // audioTracks é uma propriedade experimental, usar type assertion
+                  const videoWithAudioTracks = video as HTMLVideoElement & { audioTracks?: { length: number } };
+                  if (videoWithAudioTracks.audioTracks && videoWithAudioTracks.audioTracks.length > 0) {
+                    console.log(`🔊 Vídeo tem ${videoWithAudioTracks.audioTracks.length} faixa(s) de áudio`);
+                  }
                 }
-                if (video.audioTracks && video.audioTracks.length > 0) {
-                  console.log(`🔊 Vídeo tem ${video.audioTracks.length} faixa(s) de áudio`);
-                }
-              }
-            }}
-            playsInline
-            muted={false}
-            controls={false}
-          />
+              }}
+              playsInline
+              muted={false}
+              controls={false}
+            />
+            
+            {/* Textos Sobrepostos - Preview Visual */}
+            {textOverlays
+              .filter((overlay: any) => overlay && currentTime >= overlay.startTime && currentTime < overlay.endTime)
+              .map((overlay: any) => {
+                const positionStyles = overlay.position === 'top'
+                  ? { top: '10%', bottom: 'auto', left: '50%', transform: 'translateX(-50%)' }
+                  : overlay.position === 'center'
+                  ? { top: '50%', bottom: 'auto', left: '50%', transform: 'translate(-50%, -50%)' }
+                  : { top: 'auto', bottom: '10%', left: '50%', transform: 'translateX(-50%)' };
+
+                return (
+                  <div
+                    key={overlay.id}
+                    className="absolute z-20 px-4 py-2 rounded-lg text-center max-w-[90%] pointer-events-none"
+                    style={{
+                      ...positionStyles,
+                      fontSize: `${overlay.style?.fontSize || 48}px`,
+                      color: overlay.style?.color || '#FFFFFF',
+                      backgroundColor: overlay.style?.backgroundColor || 'rgba(0, 0, 0, 0.7)',
+                      fontWeight: 'bold',
+                      textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+                      animation: overlay.style?.animation === 'fade-in' ? 'fadeIn 0.5s ease-in' : 'none',
+                    }}
+                  >
+                    {overlay.text}
+                  </div>
+                );
+              })}
+          </>
         ) : (
           <div className="text-gray-500 text-center px-4">
             <p className="text-xs sm:text-sm mb-2 font-semibold">Preview do Vídeo</p>
@@ -167,11 +222,18 @@ export function VideoPlayer() {
         )}
         
         {videoError && (
-          <div className="absolute inset-0 bg-red-900/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-red-900/50 flex items-center justify-center z-30">
             <p className="text-red-300 text-sm px-4">{videoError}</p>
           </div>
         )}
       </div>
+      
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
 
       {/* Controls */}
       <div className="p-3 sm:p-4 bg-gray-950 space-y-2 sm:space-y-3">
