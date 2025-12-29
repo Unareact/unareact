@@ -77,6 +77,58 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
       'personal trainer', 'treinamento', 'rotina de treino', 'plano de treino'
     ],
   },
+  {
+    id: 'portal-magra',
+    name: 'Portal Magra',
+    emoji: '✨',
+    description: 'Filtra vídeos sobre o momento de decisão de se cuidar: hábitos alimentares, rotina saudável e acompanhamento para mulheres que estão começando sua jornada de bem-estar',
+    keywords: [
+      // Momento de decisão - quando decide começar
+      'começar a se cuidar', 'decidir se cuidar', 'momento de mudança', 'vou me cuidar', 'começar hoje',
+      'primeiro passo', 'iniciar transformação', 'começar agora', 'hora de mudar', 'decisão de mudar',
+      
+      // Hábitos alimentares e rotina (foco principal)
+      'hábitos alimentares', 'rotina alimentar', 'alimentação saudável', 'rotina de alimentação',
+      'hábitos saudáveis', 'mudança de hábitos', 'novos hábitos', 'criar hábitos', 'rotina saudável',
+      'rotina de cuidados', 'rotina diária saudável', 'dia a dia saudável', 'organizar alimentação',
+      'planejamento alimentar', 'cardápio saudável', 'refeições saudáveis', 'comer melhor',
+      
+      // Receitas saudáveis e culinária
+      'receitas saudáveis', 'receita saudável', 'comida saudável', 'receitas fáceis saudáveis',
+      'receitas para emagrecer', 'receitas light', 'receitas fit', 'receitas nutritivas',
+      'receitas caseiras saudáveis', 'cozinha saudável', 'culinária saudável', 'pratos saudáveis',
+      'receitas rápidas saudáveis', 'receitas simples saudáveis', 'cardápio semanal saudável',
+      
+      // Acompanhamento e suporte (seu negócio)
+      'acompanhamento nutricional', 'acompanhamento alimentar', 'programa de acompanhamento',
+      'acompanhamento personalizado', 'suporte nutricional', 'orientação alimentar',
+      'acompanhamento 30 dias', 'programa 30 dias', 'desafio 30 dias', 'transformação 30 dias',
+      'programa de transformação', 'jornada de transformação', 'processo de mudança',
+      
+      // Transformação e resultados práticos
+      'antes e depois', 'transformação real', 'minha transformação', 'história de transformação',
+      'resultados reais', 'mudança de vida', 'nova vida', 'vida nova', 'renovação',
+      'depoimento real', 'testemunho', 'minha experiência', 'como mudei',
+      
+      // Bem-estar e autocuidado (não fitness pesado)
+      'bem-estar', 'wellness', 'autocuidado', 'self care', 'cuidar de si', 'cuidar de mim',
+      'qualidade de vida', 'vida saudável', 'equilíbrio', 'harmonia', 'saúde integral',
+      'cuidado pessoal', 'me priorizar', 'me valorizar', 'amor próprio',
+      
+      // Brasileiras nos EUA (público-alvo)
+      'brasileira nos eua', 'brasileira nos usa', 'brasileiras nos eua', 'brasileiras nos usa',
+      'brasileira morando nos eua', 'brasileira morando nos usa', 'vida nos eua',
+      'adaptação nos eua', 'comunidade brasileira', 'brasileiros nos eua',
+      
+      // Conteúdo que indica momento de decisão
+      'preciso mudar', 'quero mudar', 'vou mudar', 'chega de', 'não aguento mais',
+      'estou pronta', 'estou decidida', 'hora de', 'momento certo', 'agora é a hora',
+      'vou começar', 'começando hoje', 'primeiro dia', 'dia 1', 'início da jornada',
+      
+      // Evitar: debates, teorias, fitness pesado (removidos)
+      // Mantidos apenas termos práticos e de ação
+    ],
+  },
 ];
 
 export function getCategoryById(id: string): ProductCategory | undefined {

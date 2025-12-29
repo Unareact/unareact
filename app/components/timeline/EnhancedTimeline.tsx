@@ -289,6 +289,12 @@ export function EnhancedTimeline() {
                     <div className="text-white flex-shrink-0">
                       {getClipIcon(clip.type)}
                     </div>
+                    {/* Indicador de Edições Aplicadas */}
+                    {clip.effects && clip.effects.length > 0 && (
+                      <div className="flex-shrink-0" title={`Edições aplicadas: ${clip.effects.join(', ')}`}>
+                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-green-400 rounded-full animate-pulse" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0 hidden sm:block">
                       <div className="text-xs font-medium text-white truncate">
                         {clip.source.length > 20 
@@ -297,6 +303,9 @@ export function EnhancedTimeline() {
                       </div>
                       <div className="text-xs text-white/80">
                         {formatTime(clip.startTime)} - {formatTime(clip.endTime)}
+                        {clip.effects && clip.effects.length > 0 && (
+                          <span className="ml-1 text-green-400">✨</span>
+                        )}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0 sm:hidden">

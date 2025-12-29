@@ -59,7 +59,8 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
   const selectedCodes = Array.isArray(value) ? value : (value === 'ALL_AMERICAS' ? ALL_CODES : [value]);
   const selectedCount = selectedCodes.length;
 
-  const handleToggleAll = () => {
+  const handleToggleAll = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevenir que o clique feche a aba
     if (isAllAmericas) {
       onChange([]);
     } else {
@@ -67,7 +68,8 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
     }
   };
 
-  const handleToggleCountry = (code: string) => {
+  const handleToggleCountry = (code: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevenir que o clique feche a aba
     if (isAllAmericas) {
       // Se estava "Toda América", desmarcar tudo e marcar apenas este
       onChange([code]);
@@ -86,7 +88,8 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
     }
   };
 
-  const handleClear = () => {
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevenir que o clique feche a aba
     onChange([]);
   };
 
@@ -117,7 +120,10 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+          <div 
+            className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()} // Prevenir que cliques dentro do dropdown fechem a aba
+          >
             <div className="p-2 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800">
               <div className="flex items-center justify-between mb-2">
                 <button
@@ -157,7 +163,7 @@ export function RegionSelector({ value, onChange }: RegionSelectorProps) {
                         <button
                           key={country.code}
                           type="button"
-                          onClick={() => handleToggleCountry(country.code)}
+                          onClick={(e) => handleToggleCountry(country.code, e)}
                           className={cn(
                             "w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-left transition-colors",
                             isSelected

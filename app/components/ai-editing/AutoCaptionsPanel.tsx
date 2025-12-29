@@ -60,6 +60,21 @@ export function AutoCaptionsPanel() {
         Gere legendas automaticamente a partir do seu roteiro. Edite e ajuste antes de aplicar.
       </p>
 
+      {/* Aviso sobre vídeo com legendas existentes */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-1">
+              Vídeo com legendas existentes?
+            </p>
+            <p className="text-xs text-blue-700 dark:text-blue-400">
+              Se seu vídeo já tem legendas embutidas, as novas legendas serão <strong>adicionadas como camada</strong> (você pode escolher qual mostrar no preview).
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Botão de Gerar */}
       <button
         onClick={handleGenerate}

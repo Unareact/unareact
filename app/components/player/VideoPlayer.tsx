@@ -1,11 +1,102 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 export function VideoPlayer() {
-  const { currentTime, duration, isPlaying, setIsPlaying, setCurrentTime } = useEditorStore();
+  const { clips, currentTime, duration, isPlaying, setIsPlaying, setCurrentTime, setDuration } = useEditorStore();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [currentClipSource, setCurrentClipSource] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  // Encontrar clip atual baseado no tempo
+  const currentClip = clips.find(
+    (clip) => currentTime >= clip.startTime && currentTime < clip.endTime
+  );
+
+  // Atualizar source do vídeo quando o clip muda
+  useEffect(() => {
+    if (currentClip && currentClip.source) {
+      setCurrentClipSource(currentClip.source);
+      setVideoError(null);
+    } else if (clips.length > 0 && clips[0].source) {
+      // Se não há clip no tempo atual, usar o primeiro
+      setCurrentClipSource(clips[0].source);
+    } else {
+      setCurrentClipSource(null);
+    }
+  }, [currentClip, clips]);
+
+  // Atualizar duração total quando clips mudam
+  useEffect(() => {
+    if (clips.length > 0) {
+      const totalDuration = Math.max(...clips.map(c => c.endTime));
+      setDuration(totalDuration);
+    }
+  }, [clips, setDuration]);
+
+  // Controlar play/pause do vídeo
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isPlaying) {
+      video.play().catch((err) => {
+        console.error('Erro ao reproduzir vídeo:', err);
+        setIsPlaying(false);
+      });
+    } else {
+      video.pause();
+    }
+  }, [isPlaying, setIsPlaying]);
+
+  // Sincronizar tempo do vídeo com o store
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !currentClip) return;
+
+    // Calcular tempo relativo dentro do clip
+    const relativeTime = currentTime - currentClip.startTime;
+    const clipDuration = currentClip.endTime - currentClip.startTime;
+    
+    // Converter para tempo do vídeo (0 a clipDuration)
+    const videoTime = Math.max(0, Math.min(clipDuration, relativeTime));
+    
+    // Só atualizar se a diferença for significativa (> 0.5s)
+    if (Math.abs(video.currentTime - videoTime) > 0.5) {
+      video.currentTime = videoTime;
+    }
+  }, [currentTime, currentClip]);
+
+  // Atualizar currentTime quando vídeo está reproduzindo
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isPlaying || !currentClip) return;
+
+    const interval = setInterval(() => {
+      if (video && !video.paused) {
+        const relativeTime = video.currentTime;
+        const absoluteTime = currentClip.startTime + relativeTime;
+        
+        // Se passou do fim do clip, ir para o próximo ou parar
+        if (absoluteTime >= currentClip.endTime) {
+          const nextClip = clips.find(c => c.startTime >= currentClip.endTime);
+          if (nextClip) {
+            setCurrentTime(nextClip.startTime);
+          } else {
+            setCurrentTime(currentClip.endTime);
+            setIsPlaying(false);
+          }
+        } else {
+          setCurrentTime(absoluteTime);
+        }
+      }
+    }, 100); // Atualizar a cada 100ms
+
+    return () => clearInterval(interval);
+  }, [isPlaying, currentClip, clips, setCurrentTime, setIsPlaying]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -16,22 +107,70 @@ export function VideoPlayer() {
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = Number(e.target.value);
     setCurrentTime(newTime);
+    
+    // Atualizar vídeo imediatamente
+    const video = videoRef.current;
+    if (video && currentClip) {
+      const relativeTime = newTime - currentClip.startTime;
+      video.currentTime = Math.max(0, Math.min(currentClip.endTime - currentClip.startTime, relativeTime));
+    }
   };
 
   const skip = (seconds: number) => {
-    setCurrentTime(Math.max(0, Math.min(duration, currentTime + seconds)));
+    const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
+    setCurrentTime(newTime);
+  };
+
+  const handleVideoError = () => {
+    setVideoError('Erro ao carregar vídeo. Verifique se o arquivo está acessível.');
+    console.error('Erro no elemento de vídeo');
   };
 
   return (
-    <div className="bg-gray-900 rounded-lg overflow-hidden">
-      {/* Preview Area */}
-      <div className="aspect-video bg-gray-800 flex items-center justify-center relative">
-        <div className="text-gray-500 text-center px-4">
-          <p className="text-xs sm:text-sm mb-2">Preview do Vídeo</p>
-          <p className="text-xs text-gray-600">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </p>
-        </div>
+    <div className="bg-gray-900 rounded-lg overflow-hidden w-full relative z-10">
+      {/* Preview Area - Ocupa 50% da página */}
+      <div className="aspect-video bg-gray-800 flex items-center justify-center relative w-full">
+        {currentClipSource ? (
+          <video
+            ref={videoRef}
+            src={currentClipSource}
+            className="w-full h-full object-contain"
+            onError={handleVideoError}
+            onLoadedMetadata={() => {
+              const video = videoRef.current;
+              if (video && currentClip) {
+                const relativeTime = currentTime - currentClip.startTime;
+                video.currentTime = Math.max(0, Math.min(currentClip.endTime - currentClip.startTime, relativeTime));
+                
+                // Detectar se o vídeo tem faixas de áudio e legendas
+                if (video.textTracks && video.textTracks.length > 0) {
+                  console.log(`📝 Vídeo tem ${video.textTracks.length} faixa(s) de legenda embutida(s)`);
+                }
+                if (video.audioTracks && video.audioTracks.length > 0) {
+                  console.log(`🔊 Vídeo tem ${video.audioTracks.length} faixa(s) de áudio`);
+                }
+              }
+            }}
+            playsInline
+            muted={false}
+            controls={false}
+          />
+        ) : (
+          <div className="text-gray-500 text-center px-4">
+            <p className="text-xs sm:text-sm mb-2 font-semibold">Preview do Vídeo</p>
+            <p className="text-xs text-gray-400">
+              {clips.length === 0 
+                ? 'Adicione clips à timeline para visualizar'
+                : `${formatTime(currentTime)} / ${formatTime(duration)}`}
+            </p>
+          </div>
+        )}
+        
+        {videoError && (
+          <div className="absolute inset-0 bg-red-900/50 flex items-center justify-center">
+            <p className="text-red-300 text-sm px-4">{videoError}</p>
+          </div>
+        )}
       </div>
 
       {/* Controls */}

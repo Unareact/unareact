@@ -11,6 +11,8 @@ export function AutoCutPanel() {
   const [suggestions, setSuggestions] = useState<CutSuggestion[]>([]);
   const [approvedCuts, setApprovedCuts] = useState<Set<string>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewClipId, setPreviewClipId] = useState<string | null>(null);
 
@@ -46,17 +48,36 @@ export function AutoCutPanel() {
     setApprovedCuts(newApproved);
   };
 
-  const handleApplyCuts = () => {
+  const handleApplyCuts = async () => {
     const toApply = suggestions.filter((s) => approvedCuts.has(s.id));
     if (toApply.length === 0) {
       setError('Selecione pelo menos um corte para aplicar');
       return;
     }
 
-    const newClips = applyCuts(clips, toApply);
-    setClips(newClips);
-    setSuggestions([]);
-    setApprovedCuts(new Set());
+    setIsApplying(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      // Simular processamento
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const newClips = applyCuts(clips, toApply);
+      setClips(newClips);
+      setSuggestions([]);
+      setApprovedCuts(new Set());
+      
+      setSuccessMessage(`✅ ${toApply.length} corte(s) aplicado(s) com sucesso!`);
+      
+      // Limpar mensagem após 3 segundos
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Erro ao aplicar cortes:', err);
+      setError(err.message || 'Erro ao aplicar cortes');
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -106,6 +127,16 @@ export function AutoCutPanel() {
           </>
         )}
       </button>
+
+      {/* Mensagem de Sucesso */}
+      {successMessage && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-green-800 dark:text-green-300">
+            <CheckCircle2 className="w-5 h-5" />
+            <p className="text-sm font-medium">{successMessage}</p>
+          </div>
+        </div>
+      )}
 
       {/* Erro */}
       {error && (
@@ -195,14 +226,25 @@ export function AutoCutPanel() {
           {approvedCuts.size > 0 && (
             <button
               onClick={handleApplyCuts}
+              disabled={isApplying}
               className={cn(
                 'w-full py-3 px-6 rounded-lg font-medium text-white transition-all',
                 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
                 'flex items-center justify-center gap-2'
               )}
             >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>Aplicar {approvedCuts.size} Corte(s) Aprovado(s)</span>
+              {isApplying ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Aplicando {approvedCuts.size} corte(s)...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Aplicar {approvedCuts.size} Corte(s) Aprovado(s)</span>
+                </>
+              )}
             </button>
           )}
         </div>

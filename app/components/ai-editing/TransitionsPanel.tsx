@@ -11,6 +11,8 @@ export function TransitionsPanel() {
   const [suggestions, setSuggestions] = useState<Transition[]>([]);
   const [approvedTransitions, setApprovedTransitions] = useState<Set<string>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
@@ -45,17 +47,36 @@ export function TransitionsPanel() {
     setApprovedTransitions(newApproved);
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     const toApply = suggestions.filter((s) => approvedTransitions.has(s.id));
     if (toApply.length === 0) {
       setError('Selecione pelo menos uma transição para aplicar');
       return;
     }
 
-    const newClips = applyTransitions(clips, toApply);
-    setClips(newClips);
-    setSuggestions([]);
-    setApprovedTransitions(new Set());
+    setIsApplying(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      // Simular processamento (pode ser assíncrono no futuro)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const newClips = applyTransitions(clips, toApply);
+      setClips(newClips);
+      setSuggestions([]);
+      setApprovedTransitions(new Set());
+      
+      setSuccessMessage(`✅ ${toApply.length} transição(ões) aplicada(s) com sucesso!`);
+      
+      // Limpar mensagem após 3 segundos
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Erro ao aplicar transições:', err);
+      setError(err.message || 'Erro ao aplicar transições');
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const getClipName = (clipId: string) => {
@@ -101,8 +122,10 @@ export function TransitionsPanel() {
           'w-full py-3 px-6 rounded-lg font-medium text-white transition-all',
           'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          'flex items-center justify-center gap-2'
+          'flex items-center justify-center gap-2',
+          'relative z-10' // Garantir que está acima de outros elementos
         )}
+        title={clips.length < 2 ? 'Adicione pelo menos 2 clips à timeline para gerar transições' : undefined}
       >
         {isGenerating ? (
           <>
@@ -116,6 +139,30 @@ export function TransitionsPanel() {
           </>
         )}
       </button>
+
+      {/* Mensagem informativa quando não há clips suficientes */}
+      {clips.length < 2 && !isGenerating && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <p className="text-xs">
+              {clips.length === 0 
+                ? 'Adicione pelo menos 2 clips à timeline para gerar transições inteligentes'
+                : `Adicione mais ${2 - clips.length} clip(s) à timeline para gerar transições`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Mensagem de Sucesso */}
+      {successMessage && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-green-800 dark:text-green-300">
+            <CheckCircle2 className="w-5 h-5" />
+            <p className="text-sm font-medium">{successMessage}</p>
+          </div>
+        </div>
+      )}
 
       {/* Erro */}
       {error && (
@@ -206,14 +253,25 @@ export function TransitionsPanel() {
           {approvedTransitions.size > 0 && (
             <button
               onClick={handleApply}
+              disabled={isApplying}
               className={cn(
                 'w-full py-3 px-6 rounded-lg font-medium text-white transition-all',
                 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
                 'flex items-center justify-center gap-2'
               )}
             >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>Aplicar {approvedTransitions.size} Transição(ões) Aprovada(s)</span>
+              {isApplying ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Aplicando {approvedTransitions.size} transição(ões)...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Aplicar {approvedTransitions.size} Transição(ões) Aprovada(s)</span>
+                </>
+              )}
             </button>
           )}
         </div>

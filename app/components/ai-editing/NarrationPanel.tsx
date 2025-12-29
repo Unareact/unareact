@@ -13,6 +13,7 @@ export function NarrationPanel() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voice, setVoice] = useState<'male' | 'female' | 'energetic' | 'calm'>('male');
+  const [audioMode, setAudioMode] = useState<'replace' | 'add' | 'keep'>('replace');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const handleGenerate = async () => {
@@ -73,6 +74,21 @@ export function NarrationPanel() {
         Gere narração automática do seu roteiro usando IA. Preview antes de aplicar ao vídeo.
       </p>
 
+      {/* Aviso sobre vídeo com áudio existente */}
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-xs font-medium text-yellow-800 dark:text-yellow-300 mb-1">
+              Vídeo com áudio existente?
+            </p>
+            <p className="text-xs text-yellow-700 dark:text-yellow-400">
+              Se seu vídeo já tem narração/áudio, você pode: <strong>manter o original</strong>, <strong>substituir</strong> ou <strong>adicionar como camada adicional</strong> (mixagem).
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Seleção de Voz */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -91,10 +107,32 @@ export function NarrationPanel() {
         </select>
       </div>
 
+      {/* Modo de Áudio */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Modo de Áudio
+        </label>
+        <select
+          value={audioMode}
+          onChange={(e) => setAudioMode(e.target.value as any)}
+          disabled={isGenerating}
+          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+        >
+          <option value="replace">Substituir áudio original</option>
+          <option value="add">Adicionar como camada (mixagem)</option>
+          <option value="keep">Manter áudio original (não gerar)</option>
+        </select>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {audioMode === 'replace' && 'O áudio original será removido e substituído pela narração gerada.'}
+          {audioMode === 'add' && 'A narração será adicionada junto com o áudio original (você pode ajustar volumes depois).'}
+          {audioMode === 'keep' && 'O áudio original será mantido. A narração não será gerada.'}
+        </p>
+      </div>
+
       {/* Botão de Gerar */}
       <button
         onClick={handleGenerate}
-        disabled={isGenerating || script.length === 0}
+        disabled={isGenerating || script.length === 0 || audioMode === 'keep'}
         className={cn(
           'w-full py-3 px-6 rounded-lg font-medium text-white transition-all',
           'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700',
@@ -106,6 +144,11 @@ export function NarrationPanel() {
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
             <span>Gerando Narração...</span>
+          </>
+        ) : audioMode === 'keep' ? (
+          <>
+            <CheckCircle2 className="w-5 h-5" />
+            <span>Áudio Original Será Mantido</span>
           </>
         ) : (
           <>

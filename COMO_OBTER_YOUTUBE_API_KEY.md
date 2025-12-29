@@ -133,6 +133,7 @@ npm run dev
 ### **Se precisar mais:**
 - Pode solicitar aumento de quota no Google Cloud Console
 - Geralmente aprovam até 1 milhão/dia para projetos legítimos
+- **📖 Veja o guia completo**: `COMO_AUMENTAR_QUOTA_YOUTUBE.md`
 
 ---
 

@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Upload, X, Film, Image, Music, File, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useEditorStore } from '@/app/stores/editor-store';
+import { useEditorStore as getEditorStore } from '@/app/stores/editor-store';
 import { VideoClip } from '@/app/types';
 import { cn } from '@/app/lib/utils';
 
@@ -15,7 +16,15 @@ interface UploadedFile {
 }
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+const ACCEPTED_VIDEO_TYPES = [
+  'video/mp4', 
+  'video/webm', 
+  'video/quicktime', 
+  'video/x-msvideo',
+  'video/mov',
+  'video/avi',
+  'video/*' // Aceitar qualquer tipo de vídeo
+];
 const ACCEPTED_AUDIO_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
@@ -28,9 +37,31 @@ export function FileUploader() {
   const { addClip, clips } = useEditorStore();
 
   const getFileType = (file: File): UploadedFile['type'] => {
-    if (ACCEPTED_VIDEO_TYPES.includes(file.type)) return 'video';
-    if (ACCEPTED_AUDIO_TYPES.includes(file.type)) return 'audio';
-    if (ACCEPTED_IMAGE_TYPES.includes(file.type)) return 'image';
+    // Verificar por extensão também (alguns navegadores não detectam MIME type corretamente)
+    const fileName = file.name.toLowerCase();
+    const fileExtension = fileName.split('.').pop();
+    
+    // Verificar vídeo por MIME type ou extensão
+    if (file.type.startsWith('video/') || 
+        ACCEPTED_VIDEO_TYPES.includes(file.type) ||
+        ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm4v'].includes(fileExtension || '')) {
+      return 'video';
+    }
+    
+    // Verificar áudio por MIME type ou extensão
+    if (file.type.startsWith('audio/') || 
+        ACCEPTED_AUDIO_TYPES.includes(file.type) ||
+        ['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(fileExtension || '')) {
+      return 'audio';
+    }
+    
+    // Verificar imagem por MIME type ou extensão
+    if (file.type.startsWith('image/') || 
+        ACCEPTED_IMAGE_TYPES.includes(file.type) ||
+        ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension || '')) {
+      return 'image';
+    }
+    
     return 'other';
   };
 
@@ -58,13 +89,39 @@ export function FileUploader() {
   const getVideoDuration = (file: File): Promise<number> => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
+      const url = URL.createObjectURL(file);
+      let resolved = false;
+      
+      // Timeout de 10 segundos para evitar travamento
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          window.URL.revokeObjectURL(url);
+          console.warn('Timeout ao obter duração do vídeo, usando 10s como padrão');
+          resolve(10); // Duração padrão se timeout
+        }
+      }, 10000);
+      
       video.preload = 'metadata';
       video.onloadedmetadata = () => {
-        window.URL.revokeObjectURL(video.src);
-        resolve(video.duration);
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          const duration = video.duration || 10;
+          window.URL.revokeObjectURL(url);
+          resolve(duration);
+        }
       };
-      video.onerror = () => resolve(0);
-      video.src = URL.createObjectURL(file);
+      video.onerror = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          window.URL.revokeObjectURL(url);
+          console.warn('Erro ao carregar metadados do vídeo, usando 10s como padrão');
+          resolve(10); // Duração padrão se erro
+        }
+      };
+      video.src = url;
     });
   };
 
@@ -88,8 +145,13 @@ export function FileUploader() {
 
     setIsProcessing(true);
     setErrors([]);
+    
+    console.log(`📤 Processando ${fileArray.length} arquivo(s)...`);
 
-    for (const file of fileArray) {
+    // Processar arquivos sequencialmente para melhor feedback e evitar travamentos
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      console.log(`📦 Processando arquivo ${i + 1}/${fileArray.length}: ${file.name}`);
       // Validar tamanho
       if (file.size > MAX_FILE_SIZE) {
         newErrors.push(`${file.name}: Arquivo muito grande (máx. ${formatFileSize(MAX_FILE_SIZE)})`);
@@ -99,7 +161,12 @@ export function FileUploader() {
       // Validar tipo
       const fileType = getFileType(file);
       if (fileType === 'other') {
-        newErrors.push(`${file.name}: Formato não suportado`);
+        newErrors.push(`${file.name}: Formato não suportado (tipo: ${file.type || 'desconhecido'})`);
+        console.warn('Tipo de arquivo não suportado:', {
+          name: file.name,
+          type: file.type,
+          size: file.size
+        });
         continue;
       }
 
@@ -108,8 +175,26 @@ export function FileUploader() {
       let duration = 0;
 
       if (fileType === 'video') {
-        preview = URL.createObjectURL(file);
-        duration = await getVideoDuration(file);
+        try {
+          // Criar preview imediatamente
+          preview = URL.createObjectURL(file);
+          console.log(`📹 Processando vídeo: ${file.name}...`);
+          
+          // Obter duração (com timeout para não travar)
+          duration = await getVideoDuration(file);
+          
+          if (duration > 0) {
+            console.log(`✅ Vídeo processado: ${file.name} (${Math.floor(duration)}s)`);
+          } else {
+            console.warn(`⚠️ Duração não detectada para ${file.name}, usando 10s como padrão`);
+            duration = 10; // Duração padrão
+          }
+        } catch (error) {
+          console.error('Erro ao processar vídeo:', error);
+          // Mesmo com erro, adiciona o arquivo com duração padrão
+          duration = 10;
+          console.warn(`⚠️ Continuando com duração padrão para ${file.name}`);
+        }
       } else if (fileType === 'audio') {
         preview = ''; // Sem preview visual para áudio
         duration = await getAudioDuration(file);
@@ -118,18 +203,23 @@ export function FileUploader() {
         duration = 5; // Imagens duram 5s por padrão
       }
 
-      newFiles.push({
+      const newFile: UploadedFile = {
         id: `${Date.now()}-${Math.random()}`,
         file,
         preview,
         type: fileType,
         duration,
-      });
+      };
+
+      newFiles.push(newFile);
+      
+      // Atualizar lista incrementalmente para feedback visual imediato
+      setUploadedFiles((prev) => [...prev, newFile]);
     }
 
-    setUploadedFiles((prev) => [...prev, ...newFiles]);
     setErrors(newErrors);
     setIsProcessing(false);
+    console.log(`✅ Processamento concluído: ${newFiles.length} arquivo(s) processado(s)`);
   }, []);
 
   const handleDrop = useCallback(
@@ -174,33 +264,45 @@ export function FileUploader() {
 
   const addToTimeline = useCallback(
     (uploadedFile: UploadedFile) => {
-      // Determinar tipo de clip (áudio vira 'video' por enquanto, pois VideoClip não tem tipo 'audio')
-      const clipType: VideoClip['type'] =
-        uploadedFile.type === 'video' ? 'video' : uploadedFile.type === 'image' ? 'image' : 'video';
+      try {
+        // Determinar tipo de clip (áudio vira 'video' por enquanto, pois VideoClip não tem tipo 'audio')
+        const clipType: VideoClip['type'] =
+          uploadedFile.type === 'video' ? 'video' : uploadedFile.type === 'image' ? 'image' : 'video';
 
-      // Calcular posição na timeline (após o último clip)
-      const lastClip = clips.length > 0 ? clips[clips.length - 1] : null;
-      const startTime = lastClip ? lastClip.endTime : 0;
-      const endTime = startTime + (uploadedFile.duration || 5);
+        // Calcular posição na timeline (após o último clip)
+        const lastClip = clips.length > 0 ? clips[clips.length - 1] : null;
+        const startTime = lastClip ? lastClip.endTime : 0;
+        const endTime = startTime + (uploadedFile.duration || 5);
 
-      // Para áudio, usar o blob URL se disponível, senão o nome do arquivo
-      let source = uploadedFile.file.name;
-      if (uploadedFile.preview && uploadedFile.preview.startsWith('blob:')) {
-        source = uploadedFile.preview;
-      } else if (uploadedFile.type === 'audio') {
-        // Criar blob URL para áudio se não tiver preview
-        source = URL.createObjectURL(uploadedFile.file);
+        // Para áudio, usar o blob URL se disponível, senão o nome do arquivo
+        let source = uploadedFile.file.name;
+        if (uploadedFile.preview && uploadedFile.preview.startsWith('blob:')) {
+          source = uploadedFile.preview;
+        } else if (uploadedFile.type === 'audio') {
+          // Criar blob URL para áudio se não tiver preview
+          source = URL.createObjectURL(uploadedFile.file);
+        }
+
+        const clip: VideoClip = {
+          id: `upload-${uploadedFile.id}`,
+          startTime,
+          endTime,
+          source,
+          type: clipType,
+        };
+
+        addClip(clip);
+        console.log(`✅ Clip adicionado à timeline: ${uploadedFile.file.name}`);
+        
+        // Atualizar duração total no store se necessário
+        const currentDuration = useEditorStore.getState().duration;
+        if (endTime > currentDuration) {
+          useEditorStore.getState().setDuration(endTime);
+        }
+      } catch (error) {
+        console.error('Erro ao adicionar à timeline:', error);
+        alert(`Erro ao adicionar ${uploadedFile.file.name} à timeline. Tente novamente.`);
       }
-
-      const clip: VideoClip = {
-        id: `upload-${uploadedFile.id}`,
-        startTime,
-        endTime,
-        source,
-        type: clipType,
-      };
-
-      addClip(clip);
     },
     [clips, addClip]
   );
@@ -263,12 +365,17 @@ export function FileUploader() {
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-red-800 dark:text-red-300 mb-2">Erros ao processar arquivos:</p>
+              <p className="font-semibold text-red-800 dark:text-red-300 mb-2">
+                Erros ao processar arquivos ({errors.length}):
+              </p>
               <ul className="list-disc list-inside space-y-1 text-sm text-red-700 dark:text-red-400">
                 {errors.map((error, i) => (
                   <li key={i}>{error}</li>
                 ))}
               </ul>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                💡 Dica: Formatos suportados - Vídeos: MP4, WebM, MOV, AVI | Imagens: JPG, PNG, GIF | Áudios: MP3, WAV
+              </p>
             </div>
           </div>
         </div>

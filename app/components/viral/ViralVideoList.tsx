@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
 import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight } from 'lucide-react';
+import { UNIFIED_CATEGORIES, getCategoriesForPlatform, parseCategoryId } from '@/app/lib/unified-categories';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
-import { PRODUCT_CATEGORIES } from '@/app/lib/product-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
@@ -22,8 +22,10 @@ interface LastSearch {
   minLikes: number;
   maxDaysAgo: number;
   minLikesPerDay: number;
-  category: string;
-  productCategory: string;
+  category: string; // Mantido para compatibilidade
+  productCategory: string; // Mantido para compatibilidade
+  unifiedCategory?: string; // Novo campo unificado
+  excludeAI?: boolean; // Excluir vídeos gerados por IA
   sortBy: string;
   videos: ViralVideo[];
   stats: { total: number; filtered: boolean; regions: string };
@@ -53,9 +55,28 @@ export function ViralVideoList() {
   const [minLikes, setMinLikes] = useState(lastSearch?.minLikes || 0);
   const [maxDaysAgo, setMaxDaysAgo] = useState(lastSearch?.maxDaysAgo || 0);
   const [minLikesPerDay, setMinLikesPerDay] = useState(lastSearch?.minLikesPerDay || 0);
+  // Migração: converter category e productCategory antigos para unifiedCategory
+  const getInitialUnifiedCategory = (): string => {
+    if (lastSearch?.unifiedCategory) {
+      return lastSearch.unifiedCategory;
+    }
+    // Migração: se tinha productCategory diferente de 'all', usar ele
+    if (lastSearch?.productCategory && lastSearch.productCategory !== 'all') {
+      return `prod:${lastSearch.productCategory}`;
+    }
+    // Migração: se tinha category diferente de '0', usar ele
+    if (lastSearch?.category && lastSearch.category !== '0') {
+      return `yt:${lastSearch.category}`;
+    }
+    return 'all';
+  };
+  
+  const [unifiedCategory, setUnifiedCategory] = useState(getInitialUnifiedCategory());
+  // Mantidos para compatibilidade com API (serão removidos depois)
   const [category, setCategory] = useState(lastSearch?.category || '0');
   const [productCategory, setProductCategory] = useState(lastSearch?.productCategory || 'all');
   const [shortsOnly, setShortsOnly] = useState(false);
+  const [excludeAI, setExcludeAI] = useState(lastSearch?.excludeAI ?? false);
   const [sortBy, setSortBy] = useState(lastSearch?.sortBy || 'views');
   const [error, setError] = useState<string | null>(null);
   const [diagnosingVideo, setDiagnosingVideo] = useState<{ id: string; title: string; platform?: string } | null>(null);
@@ -87,18 +108,27 @@ export function ViralVideoList() {
         maxDaysAgo: maxDaysAgo.toString(),
         minLikesPerDay: minLikesPerDay.toString(),
         sortBy: sortBy,
-        productCategory: productCategory,
+        unifiedCategory: unifiedCategory, // Novo parâmetro unificado
+        excludeAI: excludeAI.toString(), // Excluir vídeos gerados por IA
       });
       
-      // Região, categoria e shorts apenas para YouTube
+      // Região e shorts apenas para YouTube
       if (platform === 'youtube' || platform === 'all') {
         // Se region é array, enviar como string separada por vírgula
         const regionParam = Array.isArray(region) ? region.join(',') : region;
         params.append('region', regionParam);
-        params.append('category', category);
         if (shortsOnly) {
           params.append('shortsOnly', 'true');
         }
+      }
+      
+      // Manter compatibilidade: também enviar category e productCategory separados
+      const parsed = parseCategoryId(unifiedCategory);
+      if (parsed.type === 'youtube' && parsed.id !== 'all') {
+        params.append('category', parsed.id);
+      }
+      if (parsed.type === 'product' && parsed.id !== 'all') {
+        params.append('productCategory', parsed.id);
       }
       
       const url = `/api/viral?${params.toString()}`;
@@ -118,6 +148,10 @@ export function ViralVideoList() {
       
       if (data.error) {
         console.error('❌ Erro da API:', data.error);
+        // Verificar se é erro de quota
+        if (data.error.includes('quota') || data.error.includes('quotaExceeded')) {
+          throw new Error('Quota do YouTube excedida. A quota diária de 10.000 unidades foi excedida. Aguarde 24 horas ou use outra API Key.');
+        }
         throw new Error(data.error);
       }
       
@@ -144,15 +178,17 @@ export function ViralVideoList() {
       };
       setStats(statsData);
       
-      // Salvar última pesquisa
+      // Salvar última pesquisa (reutilizar parsed já declarado acima)
       saveLastSearch({
         platform,
         region,
         minLikes,
         maxDaysAgo,
         minLikesPerDay,
-        category,
-        productCategory,
+        category: parsed.type === 'youtube' ? parsed.id : '0',
+        productCategory: parsed.type === 'product' ? parsed.id : 'all',
+        unifiedCategory: unifiedCategory,
+        excludeAI: excludeAI,
         sortBy,
         videos: videosData,
         stats: statsData,
@@ -172,13 +208,53 @@ export function ViralVideoList() {
     } finally {
       setLoading(false);
     }
-  }, [platform, region, minLikes, maxDaysAgo, minLikesPerDay, category, productCategory, sortBy]);
+  }, [platform, region, minLikes, maxDaysAgo, minLikesPerDay, unifiedCategory, excludeAI, sortBy]);
+
+  // Ajustar categoria quando plataforma mudar (garantir que categoria seja válida para a plataforma)
+  useEffect(() => {
+    const availableCategories = getCategoriesForPlatform(platform);
+    const currentCategoryExists = availableCategories.some(cat => cat.id === unifiedCategory);
+    
+    if (!currentCategoryExists && unifiedCategory !== 'all') {
+      // Se a categoria atual não está disponível para a plataforma, resetar para 'all'
+      setUnifiedCategory('all');
+    }
+  }, [platform, unifiedCategory]);
 
   // Buscar apenas quando filtros principais mudam (não a cada digitação nos inputs numéricos)
   useEffect(() => {
     fetchViralVideos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platform, region, category, productCategory, sortBy]); // Removido minLikes, maxDaysAgo, minLikesPerDay - só busca quando clicar em "Buscar"
+  }, [platform, region, unifiedCategory, excludeAI, sortBy]); // Removido minLikes, maxDaysAgo, minLikesPerDay - só busca quando clicar em "Buscar"
+
+  // Escutar evento do Portal Magra
+  useEffect(() => {
+    const handlePortalMagraSearch = (event: CustomEvent) => {
+      const filters = event.detail;
+      // Atualizar todos os estados com os filtros do Portal Magra
+      setPlatform(filters.platform || 'all');
+      setRegion(filters.region || 'US');
+      setMinLikes(filters.minLikes || 0);
+      setMaxDaysAgo(filters.maxDaysAgo || 0);
+      setMinLikesPerDay(filters.minLikesPerDay || 0);
+      setUnifiedCategory(filters.unifiedCategory || 'prod:portal-magra');
+      setCategory(filters.category || '0');
+      setProductCategory(filters.productCategory || 'portal-magra');
+      setExcludeAI(filters.excludeAI ?? false);
+      setSortBy(filters.sortBy || 'viralScore');
+      // Forçar busca imediatamente
+      setTimeout(() => {
+        fetchViralVideos();
+      }, 100);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('portal-magra-search', handlePortalMagraSearch as EventListener);
+      return () => {
+        window.removeEventListener('portal-magra-search', handlePortalMagraSearch as EventListener);
+      };
+    }
+  }, [fetchViralVideos]);
 
   const handleDownload = (video: ViralVideo) => {
     // Preencher URL e mudar para aba Download
@@ -283,7 +359,7 @@ export function ViralVideoList() {
           maxDaysAgo: maxDaysAgo.toString(),
           minLikesPerDay: minLikesPerDay.toString(),
           sortBy: sortBy,
-          productCategory: productCategory, // Filtro de categoria de produto
+          unifiedCategory: unifiedCategory, // Categoria unificada
         });
 
         if (parsed.channelId) {
@@ -298,10 +374,6 @@ export function ViralVideoList() {
         if (!isTikTok) {
           if (shortsOnly) {
             params.append('shortsOnly', 'true');
-          }
-          // Categoria do YouTube (se aplicável)
-          if (category && category !== '0') {
-            params.append('category', category);
           }
         }
 
@@ -384,7 +456,8 @@ export function ViralVideoList() {
         maxDaysAgo: 0,
         minLikesPerDay: 0,
         category: '0',
-        productCategory: productCategory,
+        productCategory: 'all',
+        unifiedCategory: unifiedCategory,
         sortBy: 'viralScore',
         videos: similarData.videos || [],
         stats: {
@@ -496,40 +569,19 @@ export function ViralVideoList() {
             />
           )}
           
-          {/* Categoria/Nicho - Apenas para YouTube */}
-          {(platform === 'youtube' || platform === 'all') && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                <Filter className="w-4 h-4" />
-                Nicho/Categoria
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-              >
-                {YOUTUBE_CATEGORIES.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.emoji} {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          {/* Categoria de Produto - Para todas as plataformas */}
+          {/* Categoria Unificada - Combina categorias do YouTube e produtos */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Filter className="w-4 h-4 text-green-500" />
-              Categoria de Produto
+              <Filter className="w-4 h-4" />
+              Categoria/Nicho
             </label>
             <select
-              value={productCategory}
-              onChange={(e) => setProductCategory(e.target.value)}
-              title={PRODUCT_CATEGORIES.find(cat => cat.id === productCategory)?.description || ''}
+              value={unifiedCategory}
+              onChange={(e) => setUnifiedCategory(e.target.value)}
+              title={UNIFIED_CATEGORIES.find(cat => cat.id === unifiedCategory)?.description || ''}
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
             >
-              {PRODUCT_CATEGORIES.map((cat) => (
+              {getCategoriesForPlatform(platform).map((cat) => (
                 <option key={cat.id} value={cat.id} title={cat.description}>
                   {cat.emoji} {cat.name}
                 </option>
@@ -557,6 +609,25 @@ export function ViralVideoList() {
               </label>
             </div>
           )}
+          
+          {/* Excluir Vídeos de IA - Para todas as plataformas */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+              <Brain className="w-4 h-4" />
+              Filtro de Conteúdo
+            </label>
+            <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              <input
+                type="checkbox"
+                checked={excludeAI}
+                onChange={(e) => setExcludeAI(e.target.checked)}
+                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+              />
+              <span className="text-sm text-gray-900 dark:text-gray-100">
+                🤖 Excluir vídeos gerados por IA
+              </span>
+            </label>
+          </div>
           
           {/* Ordenação - Como os vídeos vão aparecer */}
           <div className="flex flex-col gap-1">
@@ -700,11 +771,17 @@ export function ViralVideoList() {
                       {minLikesPerDay.toLocaleString()}+ curtidas/dia
                     </span>
                   )}
-                  {category && category !== '0' && (
-                    <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 rounded text-xs">
-                      {YOUTUBE_CATEGORIES.find(c => c.id === category)?.name || category}
-                    </span>
-                  )}
+                  {unifiedCategory && unifiedCategory !== 'all' && (() => {
+                    const parsed = parseCategoryId(unifiedCategory);
+                    const categoryName = parsed.type === 'youtube' 
+                      ? YOUTUBE_CATEGORIES.find(c => c.id === parsed.id)?.name
+                      : UNIFIED_CATEGORIES.find(c => c.id === unifiedCategory)?.name;
+                    return categoryName ? (
+                      <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 rounded text-xs">
+                        {categoryName}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
               )}
               <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded text-xs">

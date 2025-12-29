@@ -3,6 +3,8 @@ import { google } from 'googleapis';
 import { ViralVideo } from '@/app/types';
 import { TikTokService } from '@/app/lib/services/tiktok-service';
 import { matchesCategory, getCategoryById } from '@/app/lib/product-categories';
+import { parseCategoryId } from '@/app/lib/unified-categories';
+import { filterAIGenerated } from '@/app/lib/ai-video-detector';
 
 // YouTube Data API v3
 const youtube = google.youtube('v3');
@@ -13,12 +15,26 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get('platform') || 'youtube'; // 'youtube', 'tiktok', ou 'all'
     const regionParam = searchParams.get('region') || 'US';
     const maxResults = parseInt(searchParams.get('maxResults') || '50');
-    const category = searchParams.get('category') || '0';
-    const productCategory = searchParams.get('productCategory') || 'all';
+    
+    // Processar categoria unificada ou usar parâmetros antigos (compatibilidade)
+    const unifiedCategory = searchParams.get('unifiedCategory');
+    let category = searchParams.get('category') || '0';
+    let productCategory = searchParams.get('productCategory') || 'all';
+    
+    if (unifiedCategory) {
+      const parsed = parseCategoryId(unifiedCategory);
+      if (parsed.type === 'youtube') {
+        category = parsed.id === 'all' ? '0' : parsed.id;
+      } else if (parsed.type === 'product') {
+        productCategory = parsed.id === 'all' ? 'all' : parsed.id;
+      }
+    }
+    
     const minLikes = parseInt(searchParams.get('minLikes') || '0');
     const maxDaysAgo = parseInt(searchParams.get('maxDaysAgo') || '0');
     const minLikesPerDay = parseFloat(searchParams.get('minLikesPerDay') || '0');
     const shortsOnly = searchParams.get('shortsOnly') === 'true'; // Filtrar apenas YouTube Shorts
+    const excludeAI = searchParams.get('excludeAI') === 'true'; // Excluir vídeos gerados por IA
     const sortBy = searchParams.get('sortBy') || 'views'; // Padrão: mais views primeiro
     
     // Parâmetros para busca por canal
@@ -26,7 +42,7 @@ export async function GET(request: NextRequest) {
     const channelId = searchParams.get('channelId');
     const channelType = searchParams.get('channelType') as 'handle' | 'custom' | 'user' | 'channel' | 'tiktok-profile' | null;
 
-    console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category, productCategory, channelHandle, channelId, channelType });
+    console.log('🔍 API /viral recebeu:', { platform, regionParam, maxResults, minLikes, category, productCategory, unifiedCategory, channelHandle, channelId, channelType });
 
     // Se houver parâmetros de canal, buscar vídeos do canal
     if (channelHandle || channelId) {
@@ -44,7 +60,8 @@ export async function GET(request: NextRequest) {
           maxDaysAgo,
           minLikesPerDay,
           sortBy,
-          productCategory
+          productCategory,
+          excludeAI
         );
 
         return NextResponse.json({
@@ -74,7 +91,8 @@ export async function GET(request: NextRequest) {
         minLikesPerDay,
         sortBy,
         shortsOnly,
-        productCategory
+        productCategory,
+        excludeAI
       );
 
       return NextResponse.json({
@@ -115,8 +133,8 @@ export async function GET(request: NextRequest) {
     if (platform === 'all') {
       console.log('📱 Buscando de todas as plataformas...');
       const [youtubeResult, tiktokResult] = await Promise.allSettled([
-        getYouTubeVideosData(regions, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory),
-        getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy, productCategory),
+        getYouTubeVideosData(regions, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory, excludeAI),
+        getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy, productCategory, excludeAI),
       ]);
 
       const allVideos: ViralVideo[] = [];
@@ -126,18 +144,29 @@ export async function GET(request: NextRequest) {
         console.log(`📺 YouTube retornou: ${youtubeResult.value.length} vídeos`);
         allVideos.push(...youtubeResult.value);
       } else {
-        console.warn('⚠️ YouTube falhou:', youtubeResult.reason);
+        const errorMsg = youtubeResult.reason?.message || youtubeResult.reason?.toString() || 'Erro desconhecido';
+        console.warn('⚠️ YouTube falhou:', errorMsg);
+        // Se for erro de quota, não é crítico - continuar com TikTok
+        if (!errorMsg.includes('quota')) {
+          console.warn('   (Erro não relacionado a quota)');
+        }
       }
       
       // Extrair vídeos do TikTok
       if (tiktokResult.status === 'fulfilled') {
         console.log(`🎵 TikTok retornou: ${tiktokResult.value.length} vídeos`);
-        allVideos.push(...tiktokResult.value);
+        if (tiktokResult.value.length > 0) {
+          allVideos.push(...tiktokResult.value);
+        } else {
+          console.warn('⚠️ TikTok retornou 0 vídeos. Verifique se a API Key está configurada.');
+        }
       } else {
-        console.warn('⚠️ TikTok falhou:', tiktokResult.reason);
+        const errorMsg = tiktokResult.reason?.message || tiktokResult.reason?.toString() || 'Erro desconhecido';
+        console.warn('⚠️ TikTok falhou:', errorMsg);
+        console.warn('   Verifique se TIKTOK_RAPIDAPI_KEY e TIKTOK_RAPIDAPI_HOST estão configurados no .env.local');
       }
       
-      console.log(`📊 Total combinado: ${allVideos.length} vídeos`);
+      console.log(`📊 Total combinado: ${allVideos.length} vídeos (YouTube: ${youtubeResult.status === 'fulfilled' ? youtubeResult.value.length : 0}, TikTok: ${tiktokResult.status === 'fulfilled' ? tiktokResult.value.length : 0})`);
 
       // Ordenar todos os vídeos juntos
       const sortedVideos = sortVideos(allVideos, sortBy);
@@ -147,6 +176,8 @@ export async function GET(request: NextRequest) {
         videos: finalVideos,
         total: finalVideos.length,
         platform: 'all',
+        youtubeCount: youtubeResult.status === 'fulfilled' ? youtubeResult.value.length : 0,
+        tiktokCount: tiktokResult.status === 'fulfilled' ? tiktokResult.value.length : 0,
         filtersApplied: {
           minLikes: minLikes > 0,
           maxDaysAgo: maxDaysAgo > 0,
@@ -160,7 +191,7 @@ export async function GET(request: NextRequest) {
     // Padrão: YouTube (código existente)
     console.log('▶️ Buscando apenas YouTube...');
     const regionParamForYouTube = Array.isArray(regions) ? regions.join(',') : regions;
-    return await getYouTubeVideos(regionParamForYouTube, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory);
+    return await getYouTubeVideos(regionParamForYouTube, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory, excludeAI);
   } catch (error: any) {
     console.error('Erro ao buscar vídeos virais:', error);
     return NextResponse.json(
@@ -177,15 +208,27 @@ async function getTikTokVideosData(
   maxDaysAgo: number,
   minLikesPerDay: number,
   sortBy: string,
-  productCategory: string = 'all'
+  productCategory: string = 'all',
+  excludeAI: boolean = false
 ): Promise<ViralVideo[]> {
   try {
     console.log(`🎵 Buscando TikTok: maxResults=${maxResults}, minLikes=${minLikes}, productCategory=${productCategory}`);
     const tiktokService = new TikTokService();
-    // Buscar mais vídeos quando há filtro de categoria de produto
-    const searchMultiplier = (productCategory && productCategory !== 'all') ? 5 : 2;
-    let videos = await tiktokService.getTrending(maxResults * searchMultiplier);
+    // Buscar mais vídeos quando há filtro de categoria de produto (especialmente para Portal Magra)
+    const searchMultiplier = (productCategory && productCategory !== 'all') ? (productCategory === 'portal-magra' ? 10 : 5) : 2;
+    const videosToFetch = maxResults * searchMultiplier;
+    console.log(`🎵 TikTok: Buscando ${videosToFetch} vídeos trending (multiplier: ${searchMultiplier})...`);
+    
+    let videos = await tiktokService.getTrending(videosToFetch);
     console.log(`📊 TikTok: ${videos.length} vídeos recebidos da API`);
+    
+    if (videos.length === 0) {
+      console.warn('⚠️ TikTok retornou 0 vídeos. Verifique:');
+      console.warn('   1. Se TIKTOK_RAPIDAPI_KEY está configurada corretamente');
+      console.warn('   2. Se TIKTOK_RAPIDAPI_HOST está correto');
+      console.warn('   3. Se você está inscrito no plano da API no RapidAPI');
+      return [];
+    }
 
   // Aplicar filtros
   if (minLikes > 0) {
@@ -214,9 +257,38 @@ async function getTikTokVideosData(
   // Filtrar por categoria de produto
   if (productCategory && productCategory !== 'all') {
     const before = videos.length;
-    videos = videos.filter(video => matchesCategory(video, productCategory));
-    console.log(`Filtro de categoria de produto: ${before} → ${videos.length} vídeos`);
+    console.log(`🔍 TikTok: Aplicando filtro de categoria "${productCategory}" em ${before} vídeos...`);
+    
+    // Para Portal Magra, usar filtro mais flexível no TikTok também
+    if (productCategory === 'portal-magra') {
+      videos = videos.filter(video => {
+        const matches = matchesCategory(video, productCategory);
+        if (matches) return true;
+        // Se não match exato, verificar palavras-chave simples
+        const text = `${video.title} ${video.description}`.toLowerCase();
+        const simpleKeywords = ['bem', 'est', 'saud', 'rotina', 'hábito', 'aliment', 'cuidar', 'transform', 'mudança', 'vida', 'qualidade', 'receita'];
+        return simpleKeywords.some(kw => text.includes(kw));
+      });
+    } else {
+      videos = videos.filter(video => matchesCategory(video, productCategory));
+    }
+    
+    console.log(`✅ TikTok: Filtro de categoria aplicado - ${before} → ${videos.length} vídeos`);
+    
+    // Se filtrou tudo, mostrar exemplo de vídeo que não passou
+    if (videos.length === 0 && before > 0) {
+      const rejectedVideo = videos.length === 0 ? (await tiktokService.getTrending(1))[0] : null;
+      if (rejectedVideo) {
+        console.log(`⚠️ Exemplo de vídeo do TikTok que não passou no filtro:`, {
+          title: rejectedVideo.title?.substring(0, 50),
+          description: rejectedVideo.description?.substring(0, 100)
+        });
+      }
+    }
   }
+
+  // Filtrar vídeos gerados por IA
+  videos = filterAIGenerated(videos, excludeAI);
 
   // Ordenar
   const sortedVideos = sortVideos(videos, sortBy);
@@ -292,54 +364,222 @@ async function searchYouTubeByKeywords(
   apiKey: string
 ): Promise<ViralVideo[]> {
   try {
+    // Verificar se a API Key está válida
+    if (!apiKey || apiKey.length < 30) {
+      console.error('❌ API Key inválida ou não configurada');
+      return [];
+    }
+
     const category = getCategoryById(productCategory);
     if (!category || category.keywords.length === 0) {
       console.warn('⚠️ Categoria não encontrada ou sem palavras-chave');
       return [];
     }
 
-    // Usar as palavras-chave mais relevantes para buscar
-    // Priorizar palavras-chave em português e inglês
-    const mainKeywords = category.keywords
-      .filter(kw => kw.length > 4) // Filtrar palavras muito curtas
-      .slice(0, 3); // Usar as 3 primeiras palavras-chave principais
+    // Para Portal Magra, fazer múltiplas buscas com diferentes combinações
+    let allSearchItems: any[] = [];
+    
+    if (productCategory === 'portal-magra') {
+      // Fazer múltiplas buscas com diferentes combinações de palavras-chave
+      const searchQueries = [
+        'hábitos alimentares rotina saudável',
+        'transformação antes depois bem-estar',
+        'começar se cuidar mudança hábitos',
+        'acompanhamento nutricional programa',
+        'bem-estar autocuidado rotina',
+        'rotina alimentar saudável',
+        'mudança de hábitos alimentação',
+        'receitas saudáveis fáceis',
+        'receitas saudáveis para emagrecer',
+        'receitas fit saudáveis',
+        'cardápio saudável semanal',
+        'comida saudável receitas',
+      ];
 
-    const searchQuery = mainKeywords.join(' '); // Combinar palavras-chave
-    console.log(`🔍 Buscando por palavras-chave: "${searchQuery}" (categoria: ${category.name})`);
+      console.log(`🔍 Portal Magra: Fazendo ${searchQueries.length} buscas diferentes...`);
 
-    // Buscar vídeos usando search.list
-    const searchResponse = await youtube.search.list({
-      key: apiKey,
-      part: ['snippet'],
-      q: searchQuery,
-      type: 'video',
-      maxResults: Math.min(maxResults * 3, 50), // Buscar mais para ter opções após filtros
-      order: 'viewCount', // Ordenar por visualizações
-      relevanceLanguage: 'pt', // Priorizar português
-    } as any);
+      // Fazer todas as buscas em paralelo
+      const searchPromises = searchQueries.map(async (query, index) => {
+        try {
+          console.log(`🔍 Portal Magra: Busca ${index + 1}/${searchQueries.length} - "${query}"`);
+          const searchResponse = await youtube.search.list({
+            key: apiKey,
+            part: ['snippet'],
+            q: query,
+            type: 'video',
+            maxResults: 50, // Buscar mais vídeos por query
+            order: 'viewCount',
+            relevanceLanguage: 'pt',
+          } as any);
+          
+          const items = searchResponse.data.items || [];
+          if (items.length === 0) {
+            console.warn(`⚠️ Busca "${query}": 0 vídeos retornados`);
+            // Verificar se há erro na resposta
+            if (searchResponse.data.error) {
+              console.error(`   Erro da API:`, JSON.stringify(searchResponse.data.error, null, 2));
+            }
+          } else {
+            console.log(`✅ Busca "${query}": ${items.length} vídeos encontrados`);
+          }
+          return items;
+        } catch (error: any) {
+          const errorMsg = error.message || error.toString();
+          console.error(`❌ Erro na busca "${query}":`, errorMsg);
+          // Log detalhado do erro para debug
+          if (error.response) {
+            console.error(`   Status: ${error.response.status}`);
+            console.error(`   Data:`, JSON.stringify(error.response.data, null, 2));
+          } else if (error.code) {
+            console.error(`   Código: ${error.code}`);
+          }
+          
+          // Verificar se é erro de quota
+          if (errorMsg.includes('quota') || errorMsg.includes('quotaExceeded') || 
+              (error.response?.data?.error?.reason === 'quotaExceeded')) {
+            console.error('❌ QUOTA DO YOUTUBE EXCEDIDA!');
+            console.error('   A quota diária de 10.000 unidades foi excedida.');
+            console.error('   Soluções:');
+            console.error('   1. Aguarde 24 horas para resetar a quota');
+            console.error('   2. Solicite aumento de quota no Google Cloud Console');
+            console.error('   3. Use uma API Key diferente');
+            throw new Error('Quota do YouTube excedida. Aguarde 24 horas ou use outra API Key.');
+          }
+          
+          // Se for erro de autenticação, parar outras buscas
+          if (error.code === 403 || error.code === 401 || (error.response && (error.response.status === 403 || error.response.status === 401))) {
+            console.error('❌ Erro de autenticação detectado. Verifique a API Key do YouTube.');
+            throw error;
+          }
+          return [];
+        }
+      });
 
-    if (!searchResponse.data.items || searchResponse.data.items.length === 0) {
-      console.warn('⚠️ Nenhum vídeo encontrado na busca por palavras-chave');
-      return [];
+      const searchResults = await Promise.all(searchPromises);
+      // Combinar todos os resultados e remover duplicatas
+      const allItems = searchResults.flat();
+      console.log(`📊 Portal Magra: Total de ${allItems.length} vídeos antes de remover duplicatas`);
+      
+      const uniqueItems = Array.from(
+        new Map(allItems.map(item => [item.id?.videoId, item])).values()
+      );
+      allSearchItems = uniqueItems;
+      console.log(`📊 Portal Magra: ${allSearchItems.length} vídeos únicos encontrados nas buscas`);
+    } else {
+      // Para outras categorias, usar lógica padrão
+      const mainKeywords = category.keywords
+        .filter(kw => kw.length > 4)
+        .slice(0, 3);
+      const searchQuery = mainKeywords.join(' ');
+      console.log(`🔍 Buscando por palavras-chave: "${searchQuery}" (categoria: ${category.name})`);
+
+      const searchResponse = await youtube.search.list({
+        key: apiKey,
+        part: ['snippet'],
+        q: searchQuery,
+        type: 'video',
+        maxResults: Math.min(maxResults * 3, 50),
+        order: 'viewCount',
+        relevanceLanguage: 'pt',
+      } as any);
+      
+      allSearchItems = searchResponse.data.items || [];
     }
 
+    if (allSearchItems.length === 0) {
+      console.warn('⚠️ Nenhum vídeo encontrado na busca por palavras-chave');
+      // Para Portal Magra, tentar busca mais genérica como fallback
+      if (productCategory === 'portal-magra') {
+        console.warn('⚠️ Portal Magra: Nenhum vídeo encontrado com palavras-chave específicas.');
+        console.log('🔄 Tentando busca genérica como fallback...');
+        
+        // Tentar buscas mais genéricas
+        const fallbackQueries = [
+          'receitas saudáveis',
+          'alimentação saudável',
+          'bem-estar',
+          'rotina saudável',
+        ];
+        
+        const fallbackPromises = fallbackQueries.map(async (query) => {
+          try {
+            const searchResponse = await youtube.search.list({
+              key: apiKey,
+              part: ['snippet'],
+              q: query,
+              type: 'video',
+              maxResults: 25,
+              order: 'viewCount',
+              relevanceLanguage: 'pt',
+            } as any);
+            return searchResponse.data.items || [];
+          } catch (error: any) {
+            console.warn(`⚠️ Erro na busca fallback "${query}":`, error.message);
+            return [];
+          }
+        });
+        
+        const fallbackResults = await Promise.all(fallbackPromises);
+        const fallbackItems = fallbackResults.flat();
+        const uniqueFallback = Array.from(
+          new Map(fallbackItems.map(item => [item.id?.videoId, item])).values()
+        );
+        
+        if (uniqueFallback.length > 0) {
+          console.log(`✅ Fallback: ${uniqueFallback.length} vídeos encontrados`);
+          allSearchItems = uniqueFallback;
+        } else {
+          console.warn('❌ Fallback também não retornou vídeos. Verifique a API Key do YouTube.');
+          return [];
+        }
+      } else {
+        return [];
+      }
+    }
+
+    console.log(`📹 Portal Magra: Buscando estatísticas para ${allSearchItems.length} vídeos...`);
+
     // Buscar estatísticas dos vídeos encontrados
-    const videoIds = searchResponse.data.items
+    const videoIds = allSearchItems
       .map(item => item.id?.videoId)
       .filter(Boolean) as string[];
 
     if (videoIds.length === 0) {
+      console.warn('⚠️ Nenhum videoId válido encontrado nos resultados da busca');
       return [];
     }
 
-    const videosResponse = await youtube.videos.list({
-      key: apiKey,
-      part: ['snippet', 'statistics', 'contentDetails'],
-      id: videoIds,
+    console.log(`📹 Portal Magra: Buscando detalhes de ${videoIds.length} vídeos...`);
+
+    // Dividir em lotes de 50 (limite da API do YouTube)
+    const videoBatches: string[][] = [];
+    for (let i = 0; i < videoIds.length; i += 50) {
+      videoBatches.push(videoIds.slice(i, i + 50));
+    }
+
+    console.log(`📹 Portal Magra: Buscando em ${videoBatches.length} lote(s) de vídeos...`);
+
+    // Buscar estatísticas em lotes
+    const batchPromises = videoBatches.map(async (batch, batchIndex) => {
+      try {
+        const videosResponse = await youtube.videos.list({
+          key: apiKey,
+          part: ['snippet', 'statistics', 'contentDetails'],
+          id: batch,
+        });
+        console.log(`✅ Lote ${batchIndex + 1}: ${videosResponse.data.items?.length || 0} vídeos retornados`);
+        return videosResponse.data.items || [];
+      } catch (error: any) {
+        console.error(`❌ Erro ao buscar lote ${batchIndex + 1}:`, error.message || error);
+        return [];
+      }
     });
 
+    const allVideoItems = (await Promise.all(batchPromises)).flat();
+    console.log(`📊 Portal Magra: ${allVideoItems.length} vídeos com estatísticas obtidas`);
+
     // Converter para formato ViralVideo
-    const videos: ViralVideo[] = (videosResponse.data.items || []).map((item, index) => {
+    const videos: ViralVideo[] = allVideoItems.map((item, index) => {
       const snippet = item.snippet;
       const statistics = item.statistics;
       const contentDetails = item.contentDetails;
@@ -420,6 +660,28 @@ async function searchYouTubeByKeywords(
       console.log(`Filtro de crescimento: ${before} → ${filteredVideos.length} vídeos`);
     }
 
+    // Para Portal Magra, aplicar filtro muito flexível (a busca por palavras-chave já é específica)
+    // Para outras categorias, aplicar filtro normal
+    if (productCategory && productCategory !== 'all') {
+      const before = filteredVideos.length;
+      if (productCategory === 'portal-magra') {
+        // Para Portal Magra, como a busca já usa palavras-chave específicas, aceitar praticamente todos os vídeos
+        // Apenas remover vídeos claramente irrelevantes (ex: sobre carros, games, etc.)
+        filteredVideos = filteredVideos.filter(video => {
+          const text = `${video.title} ${video.description}`.toLowerCase();
+          // Palavras que indicam conteúdo claramente irrelevante
+          const excludeKeywords = ['carro', 'automóvel', 'game', 'jogo', 'futebol', 'esporte', 'política', 'notícia'];
+          const isExcluded = excludeKeywords.some(kw => text.includes(kw));
+          // Se não for claramente irrelevante, aceitar
+          return !isExcluded;
+        });
+        console.log(`🔍 Portal Magra: Filtro flexível aplicado - ${before} → ${filteredVideos.length} vídeos`);
+      } else {
+        filteredVideos = filteredVideos.filter(video => matchesCategory(video, productCategory));
+        console.log(`Filtro de categoria: ${before} → ${filteredVideos.length} vídeos`);
+      }
+    }
+
     // Ordenar
     switch (sortBy) {
       case 'likes':
@@ -450,7 +712,7 @@ async function searchYouTubeByKeywords(
     }
 
     const finalVideos = filteredVideos.slice(0, maxResults);
-    console.log(`✅ Busca por palavras-chave: ${finalVideos.length} vídeos finais (de ${videos.length} encontrados)`);
+    console.log(`✅ Busca por palavras-chave: ${finalVideos.length} vídeos finais (de ${videos.length} encontrados, ${filteredVideos.length} após filtros)`);
     return finalVideos;
   } catch (error: any) {
     console.error('❌ Erro ao buscar vídeos por palavras-chave:', error);
@@ -468,7 +730,8 @@ async function getYouTubeVideosData(
   minLikesPerDay: number,
   sortBy: string,
   shortsOnly: boolean = false,
-  productCategory: string = 'all'
+  productCategory: string = 'all',
+  excludeAI: boolean = false
 ): Promise<ViralVideo[]> {
   try {
     const apiKey = process.env.YOUTUBE_API_KEY;
@@ -507,10 +770,11 @@ async function getYouTubeVideosData(
     
     // Se houver filtro de categoria de produto, fazer busca por palavras-chave ao invés de trending
     if (productCategory && productCategory !== 'all') {
-      return await searchYouTubeByKeywords(
+      console.log(`🔍 Portal Magra: Buscando por palavras-chave (productCategory: ${productCategory})`);
+      const keywordResults = await searchYouTubeByKeywords(
         productCategory,
         regionParam,
-        maxResults,
+        maxResults * 2, // Buscar mais resultados para ter opções após filtros
         minLikes,
         maxDaysAgo,
         minLikesPerDay,
@@ -518,6 +782,8 @@ async function getYouTubeVideosData(
         shortsOnly,
         apiKey
       );
+      console.log(`✅ Portal Magra: ${keywordResults.length} vídeos retornados da busca por palavras-chave`);
+      return keywordResults;
     }
     
     // Se houver filtro de curtidas, buscar mais vídeos para ter mais opções
@@ -684,7 +950,23 @@ async function getYouTubeVideosData(
       console.log(`🔍 Aplicando filtro de categoria: ${category?.name || productCategory}`);
       console.log(`📝 Palavras-chave: ${category?.keywords.slice(0, 5).join(', ')}...`);
       
-      filteredVideos = filteredVideos.filter(video => matchesCategory(video, productCategory));
+      // Para Portal Magra, usar filtro mais flexível (aceitar mais vídeos)
+      if (productCategory === 'portal-magra') {
+        // Aplicar filtro mas manter mais vídeos - apenas remover os claramente irrelevantes
+        filteredVideos = filteredVideos.filter(video => {
+          const matches = matchesCategory(video, productCategory);
+          // Se não match, verificar se pelo menos tem alguma palavra relacionada
+          if (!matches) {
+            const text = `${video.title} ${video.description}`.toLowerCase();
+            // Aceitar se tiver pelo menos uma palavra-chave simples
+            const simpleKeywords = ['bem', 'est', 'saud', 'rotina', 'hábito', 'aliment', 'cuidar', 'transform', 'mudança'];
+            return simpleKeywords.some(kw => text.includes(kw));
+          }
+          return true;
+        });
+      } else {
+        filteredVideos = filteredVideos.filter(video => matchesCategory(video, productCategory));
+      }
       
       console.log(`✅ Filtro de categoria de produto: ${before} → ${filteredVideos.length} vídeos`);
       
@@ -700,6 +982,9 @@ async function getYouTubeVideosData(
         }
       }
     }
+    
+    // 5. Filtrar vídeos gerados por IA
+    filteredVideos = filterAIGenerated(filteredVideos, excludeAI);
 
     // Ordenar conforme solicitado
     switch (sortBy) {
@@ -759,11 +1044,12 @@ async function getYouTubeVideos(
   minLikesPerDay: number,
   sortBy: string,
   shortsOnly: boolean = false,
-  productCategory: string = 'all'
+  productCategory: string = 'all',
+  excludeAI: boolean = false
 ) {
   try {
-    const finalVideos = await getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory);
-    const allVideos = await getYouTubeVideosData(regionParam, maxResults * 3, category, 0, 0, 0, sortBy, shortsOnly, productCategory);
+    const finalVideos = await getYouTubeVideosData(regionParam, maxResults, category, minLikes, maxDaysAgo, minLikesPerDay, sortBy, shortsOnly, productCategory, excludeAI);
+    const allVideos = await getYouTubeVideosData(regionParam, maxResults * 3, category, 0, 0, 0, sortBy, shortsOnly, productCategory, excludeAI);
 
     return NextResponse.json({ 
       videos: finalVideos,
@@ -817,7 +1103,8 @@ async function getTikTokProfileVideos(
   maxDaysAgo: number,
   minLikesPerDay: number,
   sortBy: string,
-  productCategory: string = 'all'
+  productCategory: string = 'all',
+  excludeAI: boolean = false
 ): Promise<ViralVideo[]> {
   try {
     console.log(`🎵 Buscando vídeos do perfil TikTok: @${username}`);
@@ -857,6 +1144,9 @@ async function getTikTokProfileVideos(
       videos = videos.filter(video => matchesCategory(video, productCategory));
       console.log(`Filtro de categoria de produto: ${before} → ${videos.length} vídeos`);
     }
+
+    // Filtrar vídeos gerados por IA
+    videos = filterAIGenerated(videos, excludeAI);
 
     // Ordenar
     const sortedVideos = sortVideos(videos, sortBy);
@@ -1069,6 +1359,9 @@ async function getYouTubeChannelVideos(
       filteredVideos = filteredVideos.filter(video => matchesCategory(video, productCategory));
       console.log(`Filtro de categoria de produto: ${before} → ${filteredVideos.length} vídeos`);
     }
+
+    // Filtrar vídeos gerados por IA
+    filteredVideos = filterAIGenerated(filteredVideos, excludeAI);
 
     // Ordenar
     const sortedVideos = sortVideos(filteredVideos, sortBy);

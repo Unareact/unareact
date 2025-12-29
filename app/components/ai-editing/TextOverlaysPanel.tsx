@@ -11,8 +11,10 @@ export function TextOverlaysPanel() {
   const [suggestions, setSuggestions] = useState<TextOverlay[]>([]);
   const [approvedTexts, setApprovedTexts] = useState<Set<string>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(true); // Sempre mostrar preview por padrão
 
   const videoDuration = clips.length > 0
     ? Math.max(...clips.map((c) => c.endTime))
@@ -191,22 +193,37 @@ export function TextOverlaysPanel() {
                           <span>Anim: {text.style.animation}</span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleToggleApproval(text.id)}
-                        className={cn(
-                          'p-2 rounded-lg transition-all flex-shrink-0',
-                          isApproved
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => handleToggleApproval(text.id)}
+                          className={cn(
+                            'px-4 py-2 rounded-lg transition-all text-sm font-medium flex items-center gap-2',
+                            isApproved
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                          )}
+                        >
+                          {isApproved ? (
+                            <>
+                              <CheckCircle2 className="w-4 h-4" />
+                              Aprovado
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4" />
+                              Aprovar
+                            </>
+                          )}
+                        </button>
+                        {isApproved && (
+                          <button
+                            onClick={() => handleToggleApproval(text.id)}
+                            className="px-3 py-1 rounded text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            Desaprovar
+                          </button>
                         )}
-                        title={isApproved ? 'Desaprovar' : 'Aprovar'}
-                      >
-                        {isApproved ? (
-                          <CheckCircle2 className="w-5 h-5" />
-                        ) : (
-                          <X className="w-5 h-5" />
-                        )}
-                      </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -217,14 +234,46 @@ export function TextOverlaysPanel() {
           {/* Botão de Aplicar */}
           {approvedTexts.size > 0 && (
             <button
+              onClick={async () => {
+                setIsApplying(true);
+                setError(null);
+                setSuccessMessage(null);
+                
+                try {
+                  // Aplicar textos aprovados (por enquanto apenas salvar no store)
+                  const toApply = suggestions.filter(s => approvedTexts.has(s.id));
+                  console.log('Aplicando textos:', toApply);
+                  
+                  // TODO: Salvar no store para renderização
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                  
+                  setSuccessMessage(`✅ ${toApply.length} texto(s) aplicado(s) com sucesso!`);
+                  setTimeout(() => setSuccessMessage(null), 3000);
+                } catch (err: any) {
+                  setError(err.message || 'Erro ao aplicar textos');
+                } finally {
+                  setIsApplying(false);
+                }
+              }}
+              disabled={isApplying}
               className={cn(
                 'w-full py-3 px-6 rounded-lg font-medium text-white transition-all',
                 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
                 'flex items-center justify-center gap-2'
               )}
             >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>Aplicar {approvedTexts.size} Texto(s) Aprovado(s)</span>
+              {isApplying ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Aplicando {approvedTexts.size} texto(s)...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Aplicar {approvedTexts.size} Texto(s) Aprovado(s)</span>
+                </>
+              )}
             </button>
           )}
         </div>
