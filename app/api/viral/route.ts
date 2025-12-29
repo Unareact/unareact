@@ -414,11 +414,7 @@ async function searchYouTubeByKeywords(
           
           const items = searchResponse.data.items || [];
           if (items.length === 0) {
-            console.warn(`⚠️ Busca "${query}": 0 vídeos retornados`);
-            // Verificar se há erro na resposta
-            if (searchResponse.data.error) {
-              console.error(`   Erro da API:`, JSON.stringify(searchResponse.data.error, null, 2));
-            }
+            console.warn(`⚠️ Busca "${query}": 0 vídeos retornados (pode ser normal se a query for muito específica)`);
           } else {
             console.log(`✅ Busca "${query}": ${items.length} vídeos encontrados`);
           }
