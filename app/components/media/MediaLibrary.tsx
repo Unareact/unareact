@@ -156,9 +156,35 @@ export function MediaLibrary() {
       return;
     }
 
-    const timer = setTimeout(() => {
-      handleSearch();
-    }, 800); // Aumentado para 800ms para evitar muitas requisições
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      setMediaItems([]);
+      
+      try {
+        const results = await searchMedia(searchQuery, mediaType, 20);
+        console.log('Resultados da busca:', results.length, 'itens');
+        
+        const converted: MediaItem[] = results.map((item: any) => ({
+          id: item.id || `media-${Date.now()}-${Math.random()}`,
+          type: item.type,
+          url: item.url,
+          thumbnail: item.thumbnail || item.url,
+          width: item.width || 0,
+          height: item.height || 0,
+          duration: item.duration,
+          author: item.author,
+          source: item.source || 'pexels',
+        }));
+        
+        console.log('Mídia convertida:', converted.length, 'itens');
+        setMediaItems(converted);
+      } catch (error) {
+        console.error('Erro ao buscar mídia:', error);
+        setMediaItems([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [searchQuery, mediaType]);
@@ -238,7 +264,12 @@ export function MediaLibrary() {
 
       {/* Grid de Mídia */}
       {allMedia.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-96 overflow-y-auto">
+        <div className="space-y-2">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {allMedia.length} {allMedia.length === 1 ? 'item encontrado' : 'itens encontrados'}
+            {selectedItems.size > 0 && ` • ${selectedItems.size} selecionado(s)`}
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-96 overflow-y-auto">
           {allMedia.map((item) => {
             const isSelected = selectedItems.has(item.id);
             return (
@@ -294,6 +325,7 @@ export function MediaLibrary() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 

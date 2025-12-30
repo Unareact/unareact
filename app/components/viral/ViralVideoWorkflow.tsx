@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ViralVideo } from '@/app/types';
-import { ScriptSegment } from '@/app/types';
+import { ViralVideo, ScriptSegment, ScriptGenerationParams } from '@/app/types';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ScriptEditor } from '../script/ScriptEditor';
-import { generateScript, ScriptGenerationParams } from '@/app/lib/openai';
+import { generateScript } from '@/app/lib/openai';
 import { 
   Video, 
   FileText, 
