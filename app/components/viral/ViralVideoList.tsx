@@ -148,11 +148,21 @@ export function ViralVideoList() {
       
       if (data.error) {
         console.error('❌ Erro da API:', data.error);
-        // Verificar se é erro de quota
-        if (data.error.includes('quota') || data.error.includes('quotaExceeded')) {
+        // Verificar se é erro de quota do YouTube
+        if (data.error.includes('quota') && data.error.includes('YouTube')) {
           throw new Error('Quota do YouTube excedida. A quota diária de 10.000 unidades foi excedida. Aguarde 24 horas ou use outra API Key.');
         }
+        // Verificar se é erro de quota do TikTok
+        if (data.error.includes('429') || (data.error.includes('quota') && data.error.includes('TikTok'))) {
+          throw new Error(data.error);
+        }
         throw new Error(data.error);
+      }
+      
+      // Verificar se há warning (quando retorna vazio mas não é erro)
+      if (data.warning && data.videos?.length === 0) {
+        console.warn('⚠️ Aviso da API:', data.warning);
+        // Não lançar erro, apenas mostrar o warning
       }
       
       if (!data.videos || data.videos.length === 0) {
@@ -160,8 +170,14 @@ export function ViralVideoList() {
           platform: data.platform, 
           total: data.total,
           filtersApplied: data.filtersApplied,
-          error: data.error
+          error: data.error,
+          warning: data.warning
         });
+        
+        // Se houver warning, pode ser quota excedida ou outro problema
+        if (data.warning && data.warning.includes('quota')) {
+          throw new Error('Quota mensal do TikTok excedida. Aguarde o reset mensal ou faça upgrade do plano na RapidAPI.');
+        }
         
         // Se houver erro, mostrar no console
         if (data.error) {
@@ -304,6 +320,7 @@ export function ViralVideoList() {
 
   if (error) {
     const isApiKeyError = error.includes('API Key') || error.includes('não configurada');
+    const isTikTokQuotaError = error.includes('429') || error.includes('quota') || error.includes('excedeu');
     const isTikTokError = error.includes('TikTok') || error.includes('Too many requests');
     
     return (
@@ -319,7 +336,18 @@ export function ViralVideoList() {
             </ul>
           </div>
         )}
-        {isTikTokError && (
+        {isTikTokQuotaError && (
+          <div className="text-sm text-yellow-600 dark:text-yellow-400 mb-4 space-y-2">
+            <p><strong>⚠️ Quota Mensal Excedida</strong></p>
+            <p>Você excedeu a quota mensal do seu plano na RapidAPI.</p>
+            <p><strong>Opções:</strong></p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Aguarde o reset mensal da quota (geralmente no início do mês)</li>
+              <li>Faça upgrade do plano em: <a href="https://rapidapi.com/Lundehund/api/tiktok-api23" target="_blank" rel="noopener noreferrer" className="underline">RapidAPI - TikTok API</a></li>
+            </ul>
+          </div>
+        )}
+        {isTikTokError && !isTikTokQuotaError && (
           <div className="text-sm text-yellow-600 dark:text-yellow-400 mb-4">
             <p>⚠️ TikTok API está com rate limit. Aguarde alguns minutos ou verifique seu plano na RapidAPI.</p>
           </div>

@@ -143,9 +143,32 @@ export function VideoPlayer() {
     setCurrentTime(newTime);
   };
 
-  const handleVideoError = () => {
-    setVideoError('Erro ao carregar vídeo. Verifique se o arquivo está acessível.');
-    console.error('Erro no elemento de vídeo');
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+    const error = video.error;
+    
+    if (error) {
+      let errorMessage = 'Erro ao carregar vídeo.';
+      switch (error.code) {
+        case error.MEDIA_ERR_ABORTED:
+          errorMessage = 'Carregamento do vídeo foi interrompido.';
+          break;
+        case error.MEDIA_ERR_NETWORK:
+          errorMessage = 'Erro de rede ao carregar vídeo.';
+          break;
+        case error.MEDIA_ERR_DECODE:
+          errorMessage = 'Erro ao decodificar vídeo.';
+          break;
+        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          errorMessage = 'Formato de vídeo não suportado.';
+          break;
+      }
+      setVideoError(errorMessage);
+      // Só logar se for um erro real (não apenas falta de vídeo)
+      if (currentClipSource) {
+        console.warn('Erro no elemento de vídeo:', errorMessage, video.src);
+      }
+    }
   };
 
   return (

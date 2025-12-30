@@ -299,8 +299,17 @@ async function getTikTokVideosData(
     const errorMessage = error.message || error.toString();
     console.error('❌ Erro ao buscar vídeos do TikTok:', {
       message: errorMessage,
-      details: error
+      details: error,
+      stack: error.stack
     });
+    
+    // Se for erro de autenticação ou configuração, não silenciar
+    if (errorMessage.includes('403') || errorMessage.includes('401') || 
+        errorMessage.includes('API Key') || errorMessage.includes('não configurada')) {
+      console.error('🚨 Erro crítico do TikTok - não silenciando:', errorMessage);
+      // Ainda retornar vazio para não quebrar quando platform=all, mas logar o erro
+    }
+    
     // Retornar array vazio em vez de throw para não quebrar quando platform=all
     return [];
   }
@@ -318,6 +327,24 @@ async function getTikTokVideos(
   try {
     const finalVideos = await getTikTokVideosData(maxResults, minLikes, maxDaysAgo, minLikesPerDay, sortBy, productCategory);
 
+    // Se não retornou vídeos, verificar se foi por erro ou apenas filtros muito restritivos
+    if (finalVideos.length === 0) {
+      console.warn('⚠️ TikTok retornou 0 vídeos após filtros');
+      // Retornar sucesso mas com array vazio e mensagem informativa
+      return NextResponse.json({
+        videos: [],
+        total: 0,
+        platform: 'tiktok',
+        warning: 'Nenhum vídeo encontrado. Pode ser devido a filtros muito restritivos ou problemas com a API do TikTok.',
+        filtersApplied: {
+          minLikes: minLikes > 0,
+          maxDaysAgo: maxDaysAgo > 0,
+          minLikesPerDay: minLikesPerDay > 0,
+          sortBy,
+        },
+      });
+    }
+
     return NextResponse.json({
       videos: finalVideos,
       total: finalVideos.length,
@@ -330,9 +357,27 @@ async function getTikTokVideos(
       },
     });
   } catch (error: any) {
-    console.error('Erro ao buscar vídeos do TikTok:', error);
+    console.error('❌ Erro ao buscar vídeos do TikTok:', error);
+    const errorMessage = error.message || error.toString();
+    
+    // Mensagens mais específicas baseadas no tipo de erro
+    let userMessage = `Erro ao buscar vídeos do TikTok: ${errorMessage}`;
+    
+    if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+      userMessage = 'Quota mensal excedida: Você excedeu a quota mensal do seu plano na RapidAPI. Opções: 1) Aguarde o reset mensal, 2) Faça upgrade do plano em https://rapidapi.com/Lundehund/api/tiktok-api23';
+    } else if (errorMessage.includes('403')) {
+      userMessage = 'Erro 403: Você precisa se inscrever no plano da API do TikTok no RapidAPI. Acesse a página da API e escolha um plano.';
+    } else if (errorMessage.includes('401')) {
+      userMessage = 'Erro 401: API Key do TikTok inválida ou expirada. Verifique TIKTOK_RAPIDAPI_KEY no .env.local.';
+    } else if (errorMessage.includes('Nenhum endpoint')) {
+      userMessage = 'Nenhum endpoint do TikTok funcionou. Verifique se os endpoints estão disponíveis no seu plano da RapidAPI.';
+    }
+    
     return NextResponse.json(
-      { error: `Erro ao buscar vídeos do TikTok: ${error.message}` },
+      { 
+        error: userMessage,
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }

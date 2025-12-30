@@ -92,76 +92,135 @@ export class TikTokService {
       return [];
     }
 
-    try {
-      const url = `https://${this.apiHost}/api/post/trending?count=${count}`;
-      
-      console.log('TikTok API Request:', {
-        url,
-        host: this.apiHost,
-        keyPrefix: this.apiKey?.substring(0, 10) + '...',
-      });
-      
-      const response = await fetch(url, {
-        headers: {
-          'x-rapidapi-host': this.apiHost,
-          'x-rapidapi-key': this.apiKey,
-        },
-      });
+    // Tentar diferentes endpoints possíveis
+    const endpoints = [
+      `/api/post/trending?count=${count}`,
+      `/api/video/trending?count=${count}`,
+      `/api/feed/trending?count=${count}`,
+      `/api/post/feed?count=${count}`,
+    ];
 
-      console.log('TikTok API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-      });
+    for (const endpoint of endpoints) {
+      try {
+        const url = `https://${this.apiHost}${endpoint}`;
+        
+        console.log('🎵 TikTok API Request:', {
+          url,
+          host: this.apiHost,
+          keyPrefix: this.apiKey?.substring(0, 10) + '...',
+        });
+        
+        const response = await fetch(url, {
+          headers: {
+            'x-rapidapi-host': this.apiHost,
+            'x-rapidapi-key': this.apiKey,
+          },
+        });
 
-      if (!response.ok) {
-        // Tentar ler a mensagem de erro da resposta
-        let errorMessage = `${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          // Se não conseguir ler JSON, usar status text
+        console.log('📡 TikTok API Response:', {
+          endpoint,
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+        });
+
+        if (!response.ok) {
+          // Tentar ler a mensagem de erro da resposta
+          let errorMessage = `${response.status} ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+            console.warn(`⚠️ Endpoint ${endpoint} retornou erro:`, errorMessage);
+          } catch {
+            // Se não conseguir ler JSON, usar status text
+          }
+
+          // Se for 403, 401 ou 429, não tentar outros endpoints
+          if (response.status === 403) {
+            throw new Error(
+              `403 Forbidden: Você precisa se inscrever no plano da API no RapidAPI. ` +
+              `Acesse a página da API e clique em "Subscribe to Test" ou escolha um plano. ` +
+              `Erro original: ${errorMessage}`
+            );
+          }
+          
+          if (response.status === 401) {
+            throw new Error(
+              `401 Unauthorized: API Key inválida ou expirada. Verifique sua chave no .env.local. ` +
+              `Erro original: ${errorMessage}`
+            );
+          }
+
+          if (response.status === 429) {
+            throw new Error(
+              `429 Too Many Requests: Você excedeu a quota mensal do seu plano na RapidAPI. ` +
+              `Opções: 1) Aguarde o reset mensal da quota, 2) Faça upgrade do plano em https://rapidapi.com/Lundehund/api/tiktok-api23 ` +
+              `Erro original: ${errorMessage}`
+            );
+          }
+
+          // Se for 404 ou outro erro, tentar próximo endpoint
+          if (response.status === 404) {
+            console.warn(`⚠️ Endpoint ${endpoint} não encontrado (404), tentando próximo...`);
+            continue;
+          }
+
+          // Para outros erros, também tentar próximo endpoint
+          console.warn(`⚠️ Endpoint ${endpoint} retornou ${response.status}, tentando próximo...`);
+          continue;
         }
 
-        // Mensagens mais específicas para erros comuns
-        if (response.status === 403) {
-          throw new Error(
-            `403 Forbidden: Você precisa se inscrever no plano da API no RapidAPI. ` +
-            `Acesse a página da API e clique em "Subscribe to Test" ou escolha um plano. ` +
-            `Erro original: ${errorMessage}`
-          );
+        const data = await response.json();
+        console.log('📊 TikTok API Data received:', {
+          endpoint,
+          hasData: !!data,
+          dataKeys: Object.keys(data || {}),
+          isArray: Array.isArray(data),
+          hasDataObject: !!data.data,
+          dataObjectKeys: data.data ? Object.keys(data.data) : [],
+          hasMusicList: !!data.data?.music_list,
+          hasItemList: !!data.itemList || !!data.data?.item_list,
+          hasVideos: !!data.data?.videos,
+          itemListCount: data.itemList?.length || data.data?.item_list?.length || 0,
+        });
+        
+        // Verificar se retornou músicas ao invés de vídeos
+        if (data.data?.music_list) {
+          console.warn(`⚠️ Endpoint ${endpoint} retornou músicas ao invés de vídeos, tentando próximo...`);
+          continue;
         }
         
-        if (response.status === 401) {
-          throw new Error(
-            `401 Unauthorized: API Key inválida ou expirada. Verifique sua chave no .env.local. ` +
-            `Erro original: ${errorMessage}`
-          );
+        // Normalizar os dados para o formato ViralVideo
+        const normalized = this.normalize(data);
+        
+        if (normalized.length > 0) {
+          console.log(`✅ Endpoint ${endpoint} funcionou! Retornou ${normalized.length} vídeos`);
+          return normalized;
+        } else {
+          console.warn(`⚠️ Endpoint ${endpoint} retornou dados mas normalização resultou em 0 vídeos, tentando próximo...`);
+          continue;
         }
-
-        throw new Error(`TikTok API error: ${errorMessage}`);
+      } catch (error: any) {
+        // Se for erro de autenticação/autorização, não tentar outros endpoints
+        if (error.message?.includes('403') || error.message?.includes('401')) {
+          console.error('❌ Erro de autenticação/autorização:', error.message);
+          throw error;
+        }
+        
+        console.warn(`⚠️ Erro ao tentar endpoint ${endpoint}:`, error.message);
+        // Continuar para próximo endpoint
+        continue;
       }
-
-      const data = await response.json();
-      console.log('TikTok API Data received:', {
-        hasData: !!data,
-        dataKeys: Object.keys(data || {}),
-        isArray: Array.isArray(data),
-        hasDataObject: !!data.data,
-        dataObjectKeys: data.data ? Object.keys(data.data) : [],
-        hasMusicList: !!data.data?.music_list,
-        hasItemList: !!data.itemList || !!data.data?.item_list,
-        hasVideos: !!data.data?.videos,
-        itemListCount: data.itemList?.length || data.data?.item_list?.length || 0,
-      });
-      
-      // Normalizar os dados para o formato ViralVideo
-      return this.normalize(data);
-    } catch (error: any) {
-      console.error('Erro ao buscar vídeos trending do TikTok:', error);
-      throw new Error(`Erro ao buscar vídeos do TikTok: ${error.message}`);
     }
+
+    // Se nenhum endpoint funcionou
+    throw new Error(
+      'Nenhum endpoint do TikTok funcionou. Verifique:\n' +
+      '1. Se você está inscrito no plano da API no RapidAPI\n' +
+      '2. Se os endpoints estão disponíveis no seu plano\n' +
+      '3. Se a API Key está correta\n' +
+      '4. Veja a documentação da API no RapidAPI para encontrar o endpoint correto de vídeos trending'
+    );
   }
 
   /**
@@ -204,11 +263,17 @@ export class TikTokService {
                    (Array.isArray(tiktokData) ? tiktokData : []);
     
     if (!Array.isArray(videos)) {
-      console.warn('Resposta do TikTok não contém array de vídeos:', {
+      console.error('❌ Resposta do TikTok não contém array de vídeos:', {
         keys: Object.keys(tiktokData || {}),
         dataKeys: tiktokData?.data ? Object.keys(tiktokData.data) : [],
         hasItemList: !!tiktokData.itemList,
-        sample: JSON.stringify(tiktokData).substring(0, 200),
+        hasDataItemList: !!tiktokData.data?.item_list,
+        hasVideos: !!tiktokData.data?.videos,
+        hasItems: !!tiktokData.data?.items,
+        isArray: Array.isArray(tiktokData),
+        videosType: typeof videos,
+        videosIsArray: Array.isArray(videos),
+        sample: JSON.stringify(tiktokData).substring(0, 500),
       });
       return [];
     }
