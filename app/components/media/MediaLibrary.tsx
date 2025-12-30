@@ -30,11 +30,18 @@ export function MediaLibrary() {
 
   // Buscar mídia
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      setMediaItems([]);
+      return;
+    }
 
     setIsSearching(true);
+    setMediaItems([]); // Limpar resultados anteriores
+    
     try {
-      const results = await searchMedia(searchQuery, mediaType);
+      const results = await searchMedia(searchQuery, mediaType, 20);
+      console.log('Resultados da busca:', results.length, 'itens');
+      
       // Converter MediaItem para o formato esperado
       const converted: MediaItem[] = results.map((item: any) => ({
         id: item.id || `media-${Date.now()}-${Math.random()}`,
@@ -47,9 +54,12 @@ export function MediaLibrary() {
         author: item.author,
         source: item.source || 'pexels',
       }));
+      
+      console.log('Mídia convertida:', converted.length, 'itens');
       setMediaItems(converted);
     } catch (error) {
       console.error('Erro ao buscar mídia:', error);
+      setMediaItems([]);
     } finally {
       setIsSearching(false);
     }
@@ -148,7 +158,7 @@ export function MediaLibrary() {
 
     const timer = setTimeout(() => {
       handleSearch();
-    }, 500);
+    }, 800); // Aumentado para 800ms para evitar muitas requisições
 
     return () => clearTimeout(timer);
   }, [searchQuery, mediaType]);
