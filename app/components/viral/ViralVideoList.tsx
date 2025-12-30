@@ -254,16 +254,21 @@ export function ViralVideoList() {
     // Evento do Portal Magra
     const handlePortalMagraSearch = (event: CustomEvent) => {
       const filters = event.detail;
-      if (filters.platform) setPlatform(filters.platform);
-      if (filters.region) setRegion(filters.region);
-      if (filters.unifiedCategory) setUnifiedCategory(filters.unifiedCategory);
-      if (filters.category) setCategory(filters.category);
-      if (filters.productCategory) setProductCategory(filters.productCategory);
-      if (filters.sortBy) setSortBy(filters.sortBy);
-      if (filters.minLikes !== undefined) setMinLikes(filters.minLikes);
-      if (filters.maxDaysAgo !== undefined) setMaxDaysAgo(filters.maxDaysAgo);
-      if (filters.minLikesPerDay !== undefined) setMinLikesPerDay(filters.minLikesPerDay);
-      // A busca será disparada automaticamente pelo useEffect que observa essas mudanças
+      // Atualizar todos os estados com os filtros do Portal Magra
+      setPlatform(filters.platform || 'all');
+      setRegion(filters.region || 'US');
+      setMinLikes(filters.minLikes || 0);
+      setMaxDaysAgo(filters.maxDaysAgo || 0);
+      setMinLikesPerDay(filters.minLikesPerDay || 0);
+      setUnifiedCategory(filters.unifiedCategory || 'prod:portal-magra');
+      setCategory(filters.category || '0');
+      setProductCategory(filters.productCategory || 'portal-magra');
+      setExcludeAI(filters.excludeAI ?? false);
+      setSortBy(filters.sortBy || 'viralScore');
+      // Forçar busca imediatamente
+      setTimeout(() => {
+        fetchViralVideos();
+      }, 100);
     };
 
     // Evento do React
