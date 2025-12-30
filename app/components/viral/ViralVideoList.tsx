@@ -243,58 +243,9 @@ export function ViralVideoList() {
     }
   }, [platform, unifiedCategory]);
 
-  // Buscar apenas quando filtros principais mudam (não a cada digitação nos inputs numéricos)
-  useEffect(() => {
-    fetchViralVideos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platform, region, unifiedCategory, excludeAI, sortBy]); // Removido minLikes, maxDaysAgo, minLikesPerDay - só busca quando clicar em "Buscar"
-
-  // Escutar eventos de busca automática por área
-  useEffect(() => {
-    // Evento do Portal Magra
-    const handlePortalMagraSearch = (event: CustomEvent) => {
-      const filters = event.detail;
-      // Atualizar todos os estados com os filtros do Portal Magra
-      setPlatform(filters.platform || 'all');
-      setRegion(filters.region || 'US');
-      setMinLikes(filters.minLikes || 0);
-      setMaxDaysAgo(filters.maxDaysAgo || 0);
-      setMinLikesPerDay(filters.minLikesPerDay || 0);
-      setUnifiedCategory(filters.unifiedCategory || 'prod:portal-magra');
-      setCategory(filters.category || '0');
-      setProductCategory(filters.productCategory || 'portal-magra');
-      setExcludeAI(filters.excludeAI ?? false);
-      setSortBy(filters.sortBy || 'viralScore');
-      // Forçar busca imediatamente
-      setTimeout(() => {
-        fetchViralVideos();
-      }, 100);
-    };
-
-    // Evento do React
-    const handleReactSearch = (event: CustomEvent) => {
-      const filters = event.detail;
-      if (filters.platform) setPlatform(filters.platform);
-      if (filters.region) setRegion(filters.region);
-      if (filters.unifiedCategory) setUnifiedCategory(filters.unifiedCategory);
-      if (filters.category) setCategory(filters.category);
-      if (filters.productCategory) setProductCategory(filters.productCategory);
-      if (filters.sortBy) setSortBy(filters.sortBy);
-      if (filters.minLikes !== undefined) setMinLikes(filters.minLikes);
-      if (filters.maxDaysAgo !== undefined) setMaxDaysAgo(filters.maxDaysAgo);
-      if (filters.minLikesPerDay !== undefined) setMinLikesPerDay(filters.minLikesPerDay);
-      // Forçar busca imediatamente
-      fetchViralVideos();
-    };
-
-    window.addEventListener('portal-magra-search', handlePortalMagraSearch as EventListener);
-    window.addEventListener('react-viral-search', handleReactSearch as EventListener);
-    
-    return () => {
-      window.removeEventListener('portal-magra-search', handlePortalMagraSearch as EventListener);
-      window.removeEventListener('react-viral-search', handleReactSearch as EventListener);
-    };
-  }, [fetchViralVideos]);
+  // NÃO buscar automaticamente - só quando o usuário clicar em "Buscar"
+  // Isso evita consumo desnecessário de créditos da API
+  // useEffect removido - busca apenas manual pelo botão
 
   const handleDownload = (video: ViralVideo) => {
     // Preencher URL e mudar para aba Download
