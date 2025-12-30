@@ -52,7 +52,8 @@ export function NutriVideoCreator() {
     // Garantir que o roteiro está aplicado
     setScript(editedSegments);
     setActivePanel('editor');
-    router.push('/');
+    // Ir para o editor da área Nutri
+    router.push('/nutri/editor');
   };
 
   return (
