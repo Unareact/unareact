@@ -8,7 +8,7 @@ import { Sparkles, Loader2, CheckCircle2, Image, Video, AlertCircle } from 'luci
 import { cn } from '@/app/lib/utils';
 
 export function AutoMediaSelector() {
-  const { script, clips, addClip } = useEditorStore();
+  const { script, clips, addClip, setClips } = useEditorStore();
   const [suggestions, setSuggestions] = useState<MediaSuggestion[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<Map<string, MediaAsset>>(new Map());
   const [isGenerating, setIsGenerating] = useState(false);
@@ -78,15 +78,17 @@ export function AutoMediaSelector() {
         currentTime = Math.max(...clips.map(c => c.endTime));
       }
 
-      // Adicionar clips na ordem do roteiro
+      // Criar todos os clips primeiro
+      const newClips: any[] = [];
       const sortedSegments = [...script].sort((a, b) => a.timestamp - b.timestamp);
       
-      for (const segment of sortedSegments) {
+      for (let i = 0; i < sortedSegments.length; i++) {
+        const segment = sortedSegments[i];
         const media = selectedMedia.get(segment.id);
         if (media) {
           const duration = media.duration || segment.duration || 5;
-          addClip({
-            id: `auto-${segment.id}-${Date.now()}`,
+          newClips.push({
+            id: `auto-${segment.id}-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
             source: media.src,
             type: media.type,
             startTime: currentTime,
@@ -96,8 +98,14 @@ export function AutoMediaSelector() {
         }
       }
 
-      setSuccessMessage(`✅ ${selectedMedia.size} mídia(s) aplicada(s) com sucesso!`);
-      setTimeout(() => setSuccessMessage(null), 3000);
+      // Adicionar todos os clips de uma vez usando setClips para melhor performance
+      if (newClips.length > 0) {
+        setClips([...clips, ...newClips]);
+        setSuccessMessage(`✅ ${newClips.length} mídia(s) aplicada(s) com sucesso!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError('Nenhuma mídia foi adicionada. Verifique se há mídia selecionada.');
+      }
     } catch (err: any) {
       console.error('Erro ao aplicar mídia:', err);
       setError(err.message || 'Erro ao aplicar mídia');

@@ -330,6 +330,8 @@ async function getTikTokVideos(
     // Se não retornou vídeos, verificar se foi por erro ou apenas filtros muito restritivos
     if (finalVideos.length === 0) {
       console.warn('⚠️ TikTok retornou 0 vídeos após filtros');
+      // Verificar se foi por quota excedida (erro 429)
+      // Se foi, o erro já foi lançado em getTikTokVideosData
       // Retornar sucesso mas com array vazio e mensagem informativa
       return NextResponse.json({
         videos: [],
