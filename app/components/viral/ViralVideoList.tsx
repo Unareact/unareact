@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
-import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight } from 'lucide-react';
+import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight, Sparkles } from 'lucide-react';
 import { UNIFIED_CATEGORIES, getCategoriesForPlatform, parseCategoryId } from '@/app/lib/unified-categories';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
@@ -11,6 +11,8 @@ import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDia
 import { RegionSelector } from './RegionSelector';
 import { parseVideoUrl } from '@/app/lib/video-url-parser';
 import { Link, Search } from 'lucide-react';
+import { ViralVideoWorkflow } from './ViralVideoWorkflow';
+import { usePathname } from 'next/navigation';
 // import { PlatformStatus } from './PlatformStatus';
 
 // Chave para localStorage
@@ -32,6 +34,9 @@ interface LastSearch {
 }
 
 export function ViralVideoList() {
+  const pathname = usePathname();
+  const isPortalPage = pathname === '/portal';
+  
   // Carregar última pesquisa do localStorage
   const loadLastSearch = (): Partial<LastSearch> | null => {
     if (typeof window === 'undefined') return null;
@@ -84,6 +89,7 @@ export function ViralVideoList() {
   const [videoUrl, setVideoUrl] = useState('');
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
   const [urlDiagnosis, setUrlDiagnosis] = useState<any>(null);
+  const [workflowVideo, setWorkflowVideo] = useState<ViralVideo | null>(null);
   const { addClip, setActivePanel, setPendingDownloadUrl } = useEditorStore();
 
   // Salvar pesquisa no localStorage
@@ -965,14 +971,41 @@ export function ViralVideoList() {
                     <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </a>
                 </div>
-                <button
-                  onClick={() => handleDownload(video)}
-                  className="w-full flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 text-xs sm:text-sm font-medium transition-colors"
-                  title="Baixar este vídeo para editar"
-                >
-                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Baixar Vídeo</span>
-                </button>
+                <div className={`grid gap-2 ${isPortalPage ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  {isPortalPage && (
+                    <button
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          window.dispatchEvent(new CustomEvent('portal-video-select', { detail: video }));
+                        }
+                      }}
+                      className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 text-xs sm:text-sm font-medium transition-colors"
+                      title="Gerar roteiro de conversão para Portal Magra"
+                    >
+                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Roteiro</span>
+                      <span className="sm:hidden">📝</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setWorkflowVideo(video)}
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 text-xs sm:text-sm font-medium transition-colors"
+                    title="Criar vídeo com este (workflow guiado)"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Criar Vídeo</span>
+                    <span className="sm:hidden">Criar</span>
+                  </button>
+                  <button
+                    onClick={() => handleDownload(video)}
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 text-xs sm:text-sm font-medium transition-colors"
+                    title="Baixar este vídeo para editar"
+                  >
+                    <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Baixar</span>
+                    <span className="sm:hidden">↓</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1013,6 +1046,25 @@ export function ViralVideoList() {
                 Buscando em todas as regiões da América...
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Workflow Guiado */}
+      {workflowVideo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-5xl w-full my-8 relative">
+            <button
+              onClick={() => setWorkflowVideo(null)}
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 z-10"
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <ViralVideoWorkflow
+              initialVideo={workflowVideo}
+              onClose={() => setWorkflowVideo(null)}
+            />
           </div>
         </div>
       )}

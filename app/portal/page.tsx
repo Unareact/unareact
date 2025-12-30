@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ViralVideoList } from '../components/viral/ViralVideoList';
+import { PortalScriptGenerator } from '../components/portal/PortalScriptGenerator';
 import { TrendingUp, Sparkles, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { ViralVideo } from '../types';
 
 const LAST_SEARCH_KEY = 'una-last-viral-search';
 
 export default function PortalPage() {
+  const [selectedVideo, setSelectedVideo] = useState<ViralVideo | null>(null);
+
   useEffect(() => {
     // Aplicar filtros do Portal Magra automaticamente ao carregar a página
     const portalMagraFilters = {
@@ -32,6 +36,16 @@ export default function PortalPage() {
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('portal-magra-search', { detail: portalMagraFilters }));
       }, 100);
+
+      // Escutar eventos de seleção de vídeo para gerar roteiro
+      const handleVideoSelect = (event: CustomEvent) => {
+        setSelectedVideo(event.detail);
+      };
+
+      window.addEventListener('portal-video-select', handleVideoSelect as EventListener);
+      return () => {
+        window.removeEventListener('portal-video-select', handleVideoSelect as EventListener);
+      };
     }
   }, []);
 
@@ -81,7 +95,21 @@ export default function PortalPage() {
               <strong>✨ Filtros aplicados:</strong> Buscando vídeos sobre hábitos alimentares, rotina saudável e 
               acompanhamento para mulheres no momento de decisão de se cuidar. Região: EUA.
             </p>
+            <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
+              <strong>🎯 Objetivo:</strong> Encontrar vídeos virais → Gerar roteiro de conversão → Criar vídeo para 
+              chamar para avaliação de $10 ou formulário do YLADA Coach.
+            </p>
           </div>
+
+          {/* Gerador de Roteiro */}
+          {selectedVideo && (
+            <div className="mb-6">
+              <PortalScriptGenerator 
+                video={selectedVideo} 
+                onClose={() => setSelectedVideo(null)} 
+              />
+            </div>
+          )}
 
           <ViralVideoList />
         </div>
