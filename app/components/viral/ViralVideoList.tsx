@@ -291,35 +291,6 @@ export function ViralVideoList() {
     };
   }, [fetchViralVideos]);
 
-  // Escutar evento do Portal Magra (antigo - mantido para compatibilidade)
-  useEffect(() => {
-    const handlePortalMagraSearch = (event: CustomEvent) => {
-      const filters = event.detail;
-      // Atualizar todos os estados com os filtros do Portal Magra
-      setPlatform(filters.platform || 'all');
-      setRegion(filters.region || 'US');
-      setMinLikes(filters.minLikes || 0);
-      setMaxDaysAgo(filters.maxDaysAgo || 0);
-      setMinLikesPerDay(filters.minLikesPerDay || 0);
-      setUnifiedCategory(filters.unifiedCategory || 'prod:portal-magra');
-      setCategory(filters.category || '0');
-      setProductCategory(filters.productCategory || 'portal-magra');
-      setExcludeAI(filters.excludeAI ?? false);
-      setSortBy(filters.sortBy || 'viralScore');
-      // Forçar busca imediatamente
-      setTimeout(() => {
-        fetchViralVideos();
-      }, 100);
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('portal-magra-search', handlePortalMagraSearch as EventListener);
-      return () => {
-        window.removeEventListener('portal-magra-search', handlePortalMagraSearch as EventListener);
-      };
-    }
-  }, [fetchViralVideos]);
-
   const handleDownload = (video: ViralVideo) => {
     // Preencher URL e mudar para aba Download
     setPendingDownloadUrl(video.url);
