@@ -948,17 +948,46 @@ export function ViralVideoList() {
                 </span>
               )}
             </div>
-            {stats.total === 0 && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-2">
-                  ⚠️ Nenhum vídeo encontrado com os filtros aplicados. Tente:
-                </p>
-                <ul className="list-disc list-inside mt-1 space-y-1 text-sm text-yellow-800 dark:text-yellow-300">
-                  <li>Reduzir o número mínimo de curtidas</li>
-                  <li>Aumentar o período de publicação</li>
-                  <li>Remover filtros de crescimento (curtidas/dia)</li>
-                  <li>Selecionar "Todas" na categoria</li>
-                </ul>
+            {stats.total === 0 && !loading && videos.length === 0 && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-1">
+                    <div className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                      <span className="text-yellow-600 dark:text-yellow-400 text-xl">🔍</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-yellow-900 dark:text-yellow-200 font-bold mb-2">
+                      Nenhum Vídeo Encontrado
+                    </h3>
+                    <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-3">
+                      Não encontramos vídeos com os filtros aplicados. Isso pode acontecer se os filtros estão muito restritivos ou a categoria não tem vídeos trending no momento.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          setMinLikes(0);
+                          setMaxDaysAgo(0);
+                          setMinLikesPerDay(0);
+                          setUnifiedCategory('all');
+                          fetchViralVideos();
+                        }}
+                        className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded-lg text-xs font-medium text-yellow-900 dark:text-yellow-200 transition-colors"
+                      >
+                        ✨ Limpar Filtros
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMinLikes(Math.max(0, minLikes - 100000));
+                          fetchViralVideos();
+                        }}
+                        className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded-lg text-xs font-medium text-yellow-900 dark:text-yellow-200 transition-colors"
+                      >
+                        📉 Reduzir Curtidas
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
