@@ -14,7 +14,8 @@ export default function ReactPage() {
     // Abrir na aba Virais por padrão para React
     setActivePanel('viral');
     
-    // Disparar busca automática para React (sem filtros específicos)
+    // Apenas configurar filtros padrão, SEM buscar automaticamente
+    // Isso evita consumo desnecessário de créditos da API
     if (typeof window !== 'undefined') {
       const reactFilters = {
         platform: 'all',
@@ -30,10 +31,10 @@ export default function ReactPage() {
         stats: { total: 0, filtered: false, regions: 'ALL_AMERICAS' },
       };
       
-      // Salvar no localStorage
+      // Salvar no localStorage (apenas para restaurar filtros)
       localStorage.setItem(LAST_SEARCH_KEY, JSON.stringify(reactFilters));
       
-      // Disparar evento para buscar vídeos
+      // Disparar evento apenas para atualizar filtros, SEM buscar
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('react-viral-search', { detail: reactFilters }));
       }, 100);

@@ -54,7 +54,7 @@ export function ViralVideoList() {
   const lastSearch = loadLastSearch();
 
   const [videos, setVideos] = useState<ViralVideo[]>(lastSearch?.videos || []);
-  const [loading, setLoading] = useState(!lastSearch?.videos); // Não carregar se tiver última pesquisa
+  const [loading, setLoading] = useState(false); // Nunca carregar automaticamente - só quando usuário clicar em "Buscar"
   const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>(lastSearch?.platform || 'all');
   const [region, setRegion] = useState<string | string[]>(lastSearch?.region || 'ALL_AMERICAS');
   const [minLikes, setMinLikes] = useState(lastSearch?.minLikes || 0);
