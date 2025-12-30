@@ -9,15 +9,9 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
@@ -29,14 +23,14 @@
       "short_name": "Virais",
       "description": "Ver vídeos virais",
       "url": "/?panel=viral",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     },
     {
       "name": "Gerar Roteiro",
       "short_name": "Roteiro",
       "description": "Gerar roteiro com IA",
       "url": "/?panel=script",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
 }
