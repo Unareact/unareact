@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ViralVideo, ScriptSegment, ScriptGenerationParams } from '@/app/types';
 import { useEditorStore } from '@/app/stores/editor-store';
@@ -29,7 +29,7 @@ interface ViralVideoWorkflowProps {
 
 export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflowProps) {
   const router = useRouter();
-  const { setScript, setActivePanel, addClip, clips } = useEditorStore();
+  const { setScript, setActivePanel, addClip, clips, script } = useEditorStore();
   
   const [currentStep, setCurrentStep] = useState<WorkflowStep>(initialVideo ? 'download' : 'select');
   const [selectedVideo, setSelectedVideo] = useState<ViralVideo | null>(initialVideo || null);
@@ -139,6 +139,8 @@ export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflow
 
       setGeneratedSegments(segments);
       setEditedSegments(segments);
+      // Atualizar o store para o ScriptEditor poder usar
+      setScript(segments);
       setCurrentStep('edit');
     } catch (err: any) {
       setError(err.message || 'Erro ao gerar roteiro');
@@ -150,7 +152,16 @@ export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflow
 
   const handleScriptUpdate = (segments: ScriptSegment[]) => {
     setEditedSegments(segments);
+    // Atualizar o store também
+    setScript(segments);
   };
+  
+  // Sincronizar editedSegments com o store quando mudar
+  useEffect(() => {
+    if (currentStep === 'edit' && editedSegments.length > 0) {
+      setScript(editedSegments);
+    }
+  }, [currentStep, editedSegments, setScript]);
 
   const handleApprove = () => {
     // Aplicar roteiro à timeline
