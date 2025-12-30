@@ -76,11 +76,7 @@ export function MainEditor() {
     setMobileMenuOpen(false);
   };
 
-  const handlePortalMagraClick = () => {
-    // Navegar para a página dedicada do Portal Magra
-    router.push('/portal');
-    setMobileMenuOpen(false);
-  };
+  // Removido handlePortalMagraClick - não deve permitir navegação entre áreas
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
@@ -93,33 +89,8 @@ export function MainEditor() {
           
           {/* Desktop Navigation */}
           <div className="hidden lg:flex gap-2 items-center">
-            {/* Botão Vídeos Virais */}
-            <a
-              href="/viral"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700 shadow-md hover:shadow-lg"
-              title="Buscar vídeos virais para reagir e conseguir muitos views"
-            >
-              <TrendingUp className="w-4 h-4" />
-              Vídeos Virais
-            </a>
-            {/* Botão Portal Magra */}
-            <button
-              onClick={handlePortalMagraClick}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700 shadow-md hover:shadow-lg"
-              title="Buscar vídeos virais para Portal Magra - converter em avaliações de $10"
-            >
-              <Sparkles className="w-4 h-4" />
-              Portal Magra
-            </button>
-            {/* Botão YLADA Nutri */}
-            <a
-              href="/nutri"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg"
-              title="Criar vídeos para YLADA Nutri - anúncios e educacional"
-            >
-              <Sparkles className="w-4 h-4" />
-              YLADA Nutri
-            </a>
+            {/* NÃO mostrar botões de outras áreas quando estiver em uma área específica */}
+            {/* Cada área é isolada para permitir venda por segmento no futuro */}
             {panels.map((panel) => {
               const Icon = panel.icon;
               return (
@@ -158,30 +129,8 @@ export function MainEditor() {
         {mobileMenuOpen && (
           <div className="lg:hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
             <div className="flex flex-col gap-2">
-              {/* Botão Vídeos Virais Mobile */}
-              <a
-                href="/viral"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-left bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700 shadow-md"
-              >
-                <TrendingUp className="w-5 h-5" />
-                Vídeos Virais
-              </a>
-              {/* Botão Portal Magra Mobile */}
-              <button
-                onClick={handlePortalMagraClick}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-left bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700 shadow-md"
-              >
-                <Sparkles className="w-5 h-5" />
-                Portal Magra
-              </button>
-              {/* Botão YLADA Nutri Mobile */}
-              <a
-                href="/nutri"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-left bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md"
-              >
-                <Sparkles className="w-5 h-5" />
-                YLADA Nutri
-              </a>
+              {/* NÃO mostrar botões de outras áreas quando estiver em uma área específica */}
+              {/* Cada área é isolada para permitir venda por segmento no futuro */}
               {panels.map((panel) => {
                 const Icon = panel.icon;
                 return (
