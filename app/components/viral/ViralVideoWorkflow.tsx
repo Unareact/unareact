@@ -350,10 +350,7 @@ export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflow
                 ← Voltar
               </button>
             </div>
-            <ScriptEditor 
-              segments={editedSegments}
-              onUpdate={handleScriptUpdate}
-            />
+            <ScriptEditor />
             <div className="flex gap-4 justify-end">
               <button
                 onClick={handleApprove}
