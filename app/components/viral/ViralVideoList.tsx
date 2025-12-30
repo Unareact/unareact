@@ -140,9 +140,34 @@ export function ViralVideoList() {
       const url = `/api/viral?${params.toString()}`;
       console.log('🔍 Buscando vídeos:', { platform, url, params: Object.fromEntries(params) });
       const response = await fetch(url);
+      
+      // Melhor tratamento de erros HTTP
       if (!response.ok) {
-        throw new Error('Erro ao buscar vídeos virais');
+        let errorMessage = `Erro ao buscar vídeos (${response.status} ${response.statusText})`;
+        
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch {
+          // Se não conseguir parsear JSON, usar mensagem padrão
+        }
+        
+        // Mensagens específicas por status
+        if (response.status === 429) {
+          errorMessage = 'Muitas requisições. Aguarde alguns segundos antes de tentar novamente.';
+        } else if (response.status === 500) {
+          errorMessage = 'Erro interno do servidor. Tente novamente em alguns instantes.';
+        } else if (response.status === 503) {
+          errorMessage = 'Serviço temporariamente indisponível. Tente novamente em alguns minutos.';
+        }
+        
+        throw new Error(errorMessage);
       }
+      
       const data = await response.json();
       
       console.log('📊 Resposta da API:', { 
@@ -225,8 +250,25 @@ export function ViralVideoList() {
         });
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar vídeos virais');
-      console.error('Erro:', err);
+      // Melhorar mensagem de erro com mais contexto
+      let errorMessage = err.message || 'Erro ao carregar vídeos virais';
+      
+      // Adicionar contexto baseado no tipo de erro
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+        errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+      } else if (err.message?.includes('timeout') || err.message?.includes('Timeout')) {
+        errorMessage = 'A requisição demorou muito. Tente novamente com filtros menos restritivos.';
+      } else if (!err.message || err.message === 'Erro ao buscar vídeos virais') {
+        errorMessage = 'Não foi possível buscar vídeos. Verifique os filtros e tente novamente.';
+      }
+      
+      setError(errorMessage);
+      console.error('❌ Erro ao buscar vídeos:', {
+        message: err.message,
+        error: err,
+        platform,
+        filters: { region, unifiedCategory, minLikes, maxDaysAgo, minLikesPerDay }
+      });
     } finally {
       setLoading(false);
     }
@@ -294,45 +336,141 @@ export function ViralVideoList() {
   }
 
   if (error) {
-    const isApiKeyError = error.includes('API Key') || error.includes('não configurada');
-    const isTikTokQuotaError = error.includes('429') || error.includes('quota') || error.includes('excedeu');
-    const isTikTokError = error.includes('TikTok') || error.includes('Too many requests');
+    const isApiKeyError = error.includes('API Key') || error.includes('não configurada') || error.includes('inválida');
+    const isTikTokQuotaError = error.includes('429') || error.includes('quota') || error.includes('excedeu') || error.includes('Quota');
+    const isTikTokError = error.includes('TikTok') || error.includes('Too many requests') || error.includes('RapidAPI');
+    const isYouTubeQuotaError = error.includes('YouTube') && error.includes('quota');
+    const isConnectionError = error.includes('conexão') || error.includes('internet') || error.includes('Failed to fetch');
+    const isTimeoutError = error.includes('timeout') || error.includes('Timeout') || error.includes('demorou muito');
+    const isServerError = error.includes('500') || error.includes('servidor') || error.includes('503');
+    const isRateLimitError = error.includes('429') || error.includes('Muitas requisições');
     
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-        <p className="text-red-800 dark:text-red-300 mb-4 font-semibold">{error}</p>
+      <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-6 shadow-sm">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="flex-shrink-0 mt-1">
+            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <span className="text-red-600 dark:text-red-400 text-xl">⚠️</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-red-900 dark:text-red-200 font-bold text-lg mb-2">Erro ao Buscar Vídeos</h3>
+            <p className="text-red-800 dark:text-red-300 font-medium">{error}</p>
+          </div>
+        </div>
+
+        {/* Mensagens específicas por tipo de erro */}
+        {isConnectionError && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+            <p className="text-blue-800 dark:text-blue-300 font-semibold mb-2">🔌 Problema de Conexão</p>
+            <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1 list-disc list-inside">
+              <li>Verifique se sua conexão com a internet está funcionando</li>
+              <li>Tente recarregar a página</li>
+              <li>Se o problema persistir, pode ser um problema temporário do servidor</li>
+            </ul>
+          </div>
+        )}
+
+        {isTimeoutError && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+            <p className="text-yellow-800 dark:text-yellow-300 font-semibold mb-2">⏱️ Requisição Demorou Muito</p>
+            <ul className="text-sm text-yellow-700 dark:text-yellow-400 space-y-1 list-disc list-inside">
+              <li>Tente novamente com filtros menos restritivos</li>
+              <li>Reduza o número mínimo de curtidas</li>
+              <li>Remova filtros de crescimento (curtidas/dia)</li>
+              <li>Selecione "Todas" na categoria</li>
+            </ul>
+          </div>
+        )}
+
+        {isServerError && (
+          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-4">
+            <p className="text-orange-800 dark:text-orange-300 font-semibold mb-2">🔧 Erro do Servidor</p>
+            <ul className="text-sm text-orange-700 dark:text-orange-400 space-y-1 list-disc list-inside">
+              <li>O servidor está temporariamente indisponível</li>
+              <li>Aguarde alguns minutos e tente novamente</li>
+              <li>Se o problema persistir, pode ser necessário verificar as configurações da API</li>
+            </ul>
+          </div>
+        )}
+
+        {isRateLimitError && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+            <p className="text-yellow-800 dark:text-yellow-300 font-semibold mb-2">🚦 Muitas Requisições</p>
+            <ul className="text-sm text-yellow-700 dark:text-yellow-400 space-y-1 list-disc list-inside">
+              <li>Aguarde 10-30 segundos antes de tentar novamente</li>
+              <li>Evite fazer muitas buscas em sequência</li>
+            </ul>
+          </div>
+        )}
+
         {isApiKeyError && (
-          <div className="text-sm text-red-600 dark:text-red-400 mb-4 space-y-2">
-            <p><strong>Como resolver:</strong></p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+            <p className="text-red-800 dark:text-red-300 font-semibold mb-2">🔑 API Key Não Configurada</p>
+            <ul className="text-sm text-red-700 dark:text-red-400 space-y-1 list-disc list-inside">
               <li>Configure a variável YOUTUBE_API_KEY no arquivo .env.local</li>
               <li>Para TikTok: Configure TIKTOK_RAPIDAPI_KEY e TIKTOK_RAPIDAPI_HOST</li>
               <li>Reinicie o servidor após adicionar as variáveis</li>
             </ul>
           </div>
         )}
-        {isTikTokQuotaError && (
-          <div className="text-sm text-yellow-600 dark:text-yellow-400 mb-4 space-y-2">
-            <p><strong>⚠️ Quota Mensal Excedida</strong></p>
-            <p>Você excedeu a quota mensal do seu plano na RapidAPI.</p>
-            <p><strong>Opções:</strong></p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Aguarde o reset mensal da quota (geralmente no início do mês)</li>
-              <li>Faça upgrade do plano em: <a href="https://rapidapi.com/Lundehund/api/tiktok-api23" target="_blank" rel="noopener noreferrer" className="underline">RapidAPI - TikTok API</a></li>
+
+        {isYouTubeQuotaError && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+            <p className="text-yellow-800 dark:text-yellow-300 font-semibold mb-2">📊 Quota do YouTube Excedida</p>
+            <ul className="text-sm text-yellow-700 dark:text-yellow-400 space-y-1 list-disc list-inside">
+              <li>A quota diária de 10.000 unidades foi excedida</li>
+              <li>Aguarde 24 horas para o reset automático</li>
+              <li>Ou configure outra API Key do YouTube</li>
             </ul>
           </div>
         )}
-        {isTikTokError && !isTikTokQuotaError && (
-          <div className="text-sm text-yellow-600 dark:text-yellow-400 mb-4">
-            <p>⚠️ TikTok API está com rate limit. Aguarde alguns minutos ou verifique seu plano na RapidAPI.</p>
+
+        {isTikTokQuotaError && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+            <p className="text-yellow-800 dark:text-yellow-300 font-semibold mb-2">📊 Quota Mensal do TikTok Excedida</p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">Você excedeu a quota mensal do seu plano na RapidAPI.</p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-400 font-semibold mb-1">Opções:</p>
+            <ul className="text-sm text-yellow-700 dark:text-yellow-400 space-y-1 list-disc list-inside">
+              <li>Aguarde o reset mensal da quota (geralmente no início do mês)</li>
+              <li>Faça upgrade do plano em: <a href="https://rapidapi.com/Lundehund/api/tiktok-api23" target="_blank" rel="noopener noreferrer" className="underline font-semibold">RapidAPI - TikTok API</a></li>
+            </ul>
           </div>
         )}
-        <button
-          onClick={fetchViralVideos}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-        >
-          Tentar novamente
-        </button>
+
+        {isTikTokError && !isTikTokQuotaError && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+            <p className="text-yellow-800 dark:text-yellow-300 font-semibold mb-2">⚠️ TikTok API com Rate Limit</p>
+            <ul className="text-sm text-yellow-700 dark:text-yellow-400 space-y-1 list-disc list-inside">
+              <li>Aguarde alguns minutos antes de tentar novamente</li>
+              <li>Verifique seu plano na RapidAPI</li>
+            </ul>
+          </div>
+        )}
+
+        {/* Ações */}
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+          <button
+            onClick={fetchViralVideos}
+            className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors flex items-center justify-center gap-2"
+          >
+            <span>🔄</span>
+            <span>Tentar Novamente</span>
+          </button>
+          <button
+            onClick={() => {
+              setError(null);
+              // Resetar filtros para valores padrão
+              setMinLikes(0);
+              setMaxDaysAgo(0);
+              setMinLikesPerDay(0);
+              setUnifiedCategory('all');
+            }}
+            className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-semibold transition-colors"
+          >
+            Limpar Filtros
+          </button>
+        </div>
       </div>
     );
   }
