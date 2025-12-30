@@ -27,20 +27,12 @@ import { AIImageGenerator } from '../media/AIImageGenerator';
 import { AutoAssembly } from '../workflow/AutoAssembly';
 import { MediaLibrary } from '../media/MediaLibrary';
 import { VisualTemplateSelector } from '../templates/VisualTemplateSelector';
-import { EditorTabs } from './EditorTabs';
-import { EditorTabsIntegration } from './EditorTabsIntegration';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
-import { usePathname } from 'next/navigation';
 
 export function MainEditor() {
   const { activePanel, setActivePanel, script, setScript } = useEditorStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [editorTab, setEditorTab] = useState('library');
   const router = useRouter();
-  const pathname = usePathname();
-  
-  // Detectar qual fluxo está ativo
-  const activeFlow = pathname === '/portal' ? 'portal' : pathname === '/nutri' ? 'nutri' : pathname === '/viral' ? 'viral' : null;
   
   // Ativar atalhos de teclado
   useKeyboardShortcuts();
@@ -95,23 +87,9 @@ export function MainEditor() {
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">
-              UNA - Editor
-            </h1>
-            {activeFlow && (
-              <span className={cn(
-                "px-2 py-1 rounded-full text-xs font-medium",
-                activeFlow === 'portal' && "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
-                activeFlow === 'nutri' && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-                activeFlow === 'viral' && "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
-              )}>
-                {activeFlow === 'portal' && 'Portal Magra'}
-                {activeFlow === 'nutri' && 'YLADA Nutri'}
-                {activeFlow === 'viral' && 'Vídeos Virais'}
-              </span>
-            )}
-          </div>
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">
+            UNA - Editor
+          </h1>
           
           {/* Desktop Navigation */}
           <div className="hidden lg:flex gap-2 items-center">
@@ -295,27 +273,47 @@ export function MainEditor() {
                     <EnhancedTimeline />
                   </div>
 
-                  {/* Painel de Mídia e Edição com Tabs - Layout Compacto */}
-                  <EditorTabs activeTab={editorTab} onTabChange={setEditorTab}>
-                    {editorTab === 'library' && <MediaLibrary />}
-                    {editorTab === 'auto' && (
-                      <div className="space-y-4">
-                        <AutoMediaSelector />
-                        <AIImageGenerator />
-                        <AutoAssembly />
-                      </div>
-                    )}
-                    {editorTab === 'templates' && <VisualTemplateSelector />}
-                    {editorTab === 'editing' && (
-                      <div className="space-y-4">
-                        <AutoCutPanel />
-                        <NarrationPanel />
-                        <AutoCaptionsPanel />
-                        <TransitionsPanel />
-                        <TextOverlaysPanel />
-                      </div>
-                    )}
-                  </EditorTabs>
+                  {/* Biblioteca de Mídia */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Biblioteca de Mídia
+                    </h2>
+                    <MediaLibrary />
+                  </div>
+
+                  {/* Mídia Automática */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Mídia Automática
+                    </h2>
+                    <div className="space-y-4">
+                      <AutoMediaSelector />
+                      <AIImageGenerator />
+                      <AutoAssembly />
+                    </div>
+                  </div>
+
+                  {/* Templates Visuais */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Templates
+                    </h2>
+                    <VisualTemplateSelector />
+                  </div>
+
+                  {/* Edição por IA */}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Edição por IA
+                    </h2>
+                    <div className="space-y-4">
+                      <AutoCutPanel />
+                      <NarrationPanel />
+                      <AutoCaptionsPanel />
+                      <TransitionsPanel />
+                      <TextOverlaysPanel />
+                    </div>
+                  </div>
 
                   {/* Exportar Vídeo */}
                   <ExportButton />

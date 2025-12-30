@@ -6,8 +6,7 @@ import { ViralVideo } from '@/app/types';
 import { ScriptSegment } from '@/app/types';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ScriptEditor } from '../script/ScriptEditor';
-import { generateScript } from '@/app/lib/openai';
-import { ScriptGenerationParams } from '@/app/types';
+import { generateScript, ScriptGenerationParams } from '@/app/lib/openai';
 import { 
   Video, 
   FileText, 
@@ -352,7 +351,10 @@ export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflow
                 ← Voltar
               </button>
             </div>
-            <ScriptEditor />
+            <ScriptEditor 
+              segments={editedSegments}
+              onUpdate={handleScriptUpdate}
+            />
             <div className="flex gap-4 justify-end">
               <button
                 onClick={handleApprove}

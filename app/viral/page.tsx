@@ -45,7 +45,7 @@ export default function ViralPage() {
               <Link 
                 href="/"
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                title="Voltar para o editor"
+                title="Voltar para a página inicial"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>

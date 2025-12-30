@@ -15,7 +15,7 @@ interface MediaItem {
   height: number;
   duration?: number;
   author?: string;
-  source: 'pexels' | 'unsplash' | 'pixabay' | 'upload';
+  source: 'pexels' | 'unsplash' | 'upload';
 }
 
 export function MediaLibrary() {
@@ -30,16 +30,13 @@ export function MediaLibrary() {
 
   // Buscar mídia
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setMediaItems([]);
-      return;
-    }
+    if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     try {
       const results = await searchMedia(searchQuery, mediaType);
       // Converter MediaItem para o formato esperado
-      const converted: MediaItem[] = results.map((item) => ({
+      const converted: MediaItem[] = results.map((item: any) => ({
         id: item.id || `media-${Date.now()}-${Math.random()}`,
         type: item.type,
         url: item.url,
@@ -48,13 +45,11 @@ export function MediaLibrary() {
         height: item.height || 0,
         duration: item.duration,
         author: item.author,
-        source: (item.source === 'pixabay' ? 'pexels' : item.source) || 'pexels',
+        source: item.source || 'pexels',
       }));
       setMediaItems(converted);
-      console.log('Mídia encontrada:', converted.length, 'itens');
     } catch (error) {
       console.error('Erro ao buscar mídia:', error);
-      setMediaItems([]);
     } finally {
       setIsSearching(false);
     }
