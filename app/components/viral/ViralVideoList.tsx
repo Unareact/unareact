@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
-import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight, Sparkles } from 'lucide-react';
+import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight, Sparkles, History, Search, Link } from 'lucide-react';
 import { UNIFIED_CATEGORIES, getCategoriesForPlatform, parseCategoryId } from '@/app/lib/unified-categories';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
+import type { ViralDiagnosis } from '@/app/types';
 import { RegionSelector } from './RegionSelector';
 import { parseVideoUrl } from '@/app/lib/video-url-parser';
-import { Link, Search } from 'lucide-react';
 import { ViralVideoWorkflow } from './ViralVideoWorkflow';
 import { usePathname } from 'next/navigation';
 // import { PlatformStatus } from './PlatformStatus';
@@ -88,9 +88,11 @@ export function ViralVideoList() {
   const [stats, setStats] = useState<{ total: number; filtered: boolean; regions: string } | null>(lastSearch?.stats || null);
   const [videoUrl, setVideoUrl] = useState('');
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
-  const [urlDiagnosis, setUrlDiagnosis] = useState<any>(null);
+  const [urlDiagnosis, setUrlDiagnosis] = useState<ViralDiagnosis | null>(null);
   const [workflowVideo, setWorkflowVideo] = useState<ViralVideo | null>(null);
-  const { addClip, setActivePanel, setPendingDownloadUrl } = useEditorStore();
+  const [searchingOriginal, setSearchingOriginal] = useState<string | null>(null);
+  const [originalVideos, setOriginalVideos] = useState<ViralVideo[]>([]);
+  const { addClip, setActivePanel, setPendingDownloadUrl, setScript, setCurrentViralDiagnosis } = useEditorStore();
 
   // Salvar pesquisa no localStorage
   const saveLastSearch = (searchData: Partial<LastSearch>) => {
@@ -295,6 +297,43 @@ export function ViralVideoList() {
     setActivePanel('download');
   };
 
+  // Função para buscar vídeo original
+  const handleFindOriginal = async (video: ViralVideo) => {
+    setSearchingOriginal(video.id);
+    setOriginalVideos([]);
+    
+    try {
+      const response = await fetch('/api/viral/original', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: video.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao buscar vídeo original');
+      }
+
+      const data = await response.json();
+      setOriginalVideos(data.videos || []);
+      
+      if (data.videos && data.videos.length > 0) {
+        // Adicionar os vídeos encontrados à lista atual
+        setVideos([...data.videos, ...videos]);
+        setStats({
+          total: (stats?.total || 0) + data.videos.length,
+          filtered: false,
+          regions: `Originais encontrados: ${data.videos.length}`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Erro ao buscar vídeo original:', err);
+      setError(err.message || 'Erro ao buscar vídeo original');
+    } finally {
+      setSearchingOriginal(null);
+    }
+  };
+
   const parseDuration = (duration: string): number => {
     // Parse ISO 8601 duration (PT1H2M10S) to seconds
     const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -482,12 +521,15 @@ export function ViralVideoList() {
       return;
     }
 
+    console.log('🔍 Iniciando análise de URL:', videoUrl);
     setIsAnalyzingUrl(true);
     setError(null);
+    setUrlDiagnosis(null); // Limpar diagnóstico anterior
 
     try {
       // Parse da URL
       const parsed = parseVideoUrl(videoUrl);
+      console.log('📋 URL parseada:', parsed);
       
       // Se for uma URL de canal/perfil, buscar vídeos do canal/perfil
       if (parsed.isChannel && parsed.isValid) {
@@ -549,6 +591,7 @@ export function ViralVideoList() {
       }
 
       // Diagnosticar o vídeo
+      console.log('🔬 Iniciando diagnóstico do vídeo:', parsed.videoId);
       const diagnosisResponse = await fetch('/api/diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -560,13 +603,16 @@ export function ViralVideoList() {
 
       if (!diagnosisResponse.ok) {
         const errorData = await diagnosisResponse.json();
+        console.error('❌ Erro no diagnóstico:', errorData);
         throw new Error(errorData.error || 'Erro ao diagnosticar vídeo');
       }
 
       const diagnosis = await diagnosisResponse.json();
+      console.log('✅ Diagnóstico concluído:', diagnosis);
       setUrlDiagnosis(diagnosis.diagnosis);
 
       // Buscar vídeos similares baseado no diagnóstico
+      console.log('🔍 Buscando vídeos similares...');
       const similarResponse = await fetch('/api/viral/similar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -578,10 +624,12 @@ export function ViralVideoList() {
 
       if (!similarResponse.ok) {
         const errorData = await similarResponse.json();
+        console.error('❌ Erro ao buscar vídeos similares:', errorData);
         throw new Error(errorData.error || 'Erro ao buscar vídeos similares');
       }
 
       const similarData = await similarResponse.json();
+      console.log('✅ Vídeos similares encontrados:', similarData.videos?.length || 0);
       setVideos(similarData.videos || []);
       setStats({
         total: similarData.total || 0,
@@ -609,10 +657,13 @@ export function ViralVideoList() {
       });
 
     } catch (err: any) {
-      setError(err.message || 'Erro ao analisar URL');
-      console.error('Erro ao analisar URL:', err);
+      const errorMessage = err.message || 'Erro ao analisar URL';
+      console.error('❌ Erro ao analisar URL:', err);
+      console.error('❌ Mensagem de erro:', errorMessage);
+      setError(errorMessage);
     } finally {
       setIsAnalyzingUrl(false);
+      console.log('🏁 Análise de URL finalizada');
     }
   };
 
@@ -663,17 +714,79 @@ export function ViralVideoList() {
             )}
           </button>
         </div>
+        {error && videoUrl.trim() && (
+          <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <p className="text-sm text-red-800 dark:text-red-300 font-medium">
+              ⚠️ {error}
+            </p>
+          </div>
+        )}
         {urlDiagnosis && (
           <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700">
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
               📊 Vídeo analisado: <strong>{urlDiagnosis.videoTitle}</strong>
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-500 mb-3">
               Buscando vídeos com padrões similares: {urlDiagnosis.viralFactors?.structure || 'N/A'}
             </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  // Salvar diagnóstico no store para o componente usar
+                  setCurrentViralDiagnosis(urlDiagnosis);
+                  setDiagnosingVideo({
+                    id: urlDiagnosis.videoId,
+                    title: urlDiagnosis.videoTitle,
+                    platform: 'youtube'
+                  });
+                }}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium flex items-center justify-center gap-2 transition-all text-sm"
+              >
+                <Brain className="w-4 h-4" />
+                Ver Diagnóstico Completo
+              </button>
+              <button
+                onClick={() => {
+                  // Aplicar template diretamente ao editor
+                  const { setScript, setActivePanel, setCurrentViralDiagnosis } = useEditorStore.getState();
+                  setCurrentViralDiagnosis(urlDiagnosis);
+                  
+                  // Criar roteiro baseado no template
+                  const segments = urlDiagnosis.scriptTemplate.segments.map((seg, index) => ({
+                    id: `diagnosis-${Date.now()}-${index}`,
+                    text: seg.example || seg.description,
+                    duration: seg.duration,
+                    timestamp: urlDiagnosis.scriptTemplate.segments.slice(0, index).reduce((acc, s) => acc + s.duration, 0),
+                    type: seg.type === 'hook' ? 'intro' as const : 
+                          seg.type === 'cta' ? 'outro' as const : 
+                          'content' as const,
+                  }));
+                  
+                  setScript(segments);
+                  setActivePanel('script');
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center justify-center gap-2 transition-all text-sm"
+                title="Aplicar template ao editor"
+              >
+                <FileText className="w-4 h-4" />
+                Usar Template
+              </button>
+            </div>
           </div>
         )}
       </div>
+      
+      {/* Diagnóstico Completo - Exibir quando disponível */}
+      {urlDiagnosis && diagnosingVideo && diagnosingVideo.id === urlDiagnosis.videoId && (
+        <div className="mt-4">
+          <ViralDiagnosisComponent
+            videoId={urlDiagnosis.videoId}
+            videoTitle={urlDiagnosis.videoTitle}
+            platform="youtube"
+            onClose={() => setDiagnosingVideo(null)}
+          />
+        </div>
+      )}
       
       {/* Filtros */}
       <div className="space-y-4 p-3 sm:p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
@@ -1107,7 +1220,7 @@ export function ViralVideoList() {
                     <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </a>
                 </div>
-                <div className={`grid gap-2 ${isPortalPage ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <div className={`grid gap-2 ${isPortalPage ? 'grid-cols-4' : 'grid-cols-3'}`}>
                   {isPortalPage && (
                     <button
                       onClick={() => {
@@ -1140,6 +1253,26 @@ export function ViralVideoList() {
                     <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Baixar</span>
                     <span className="sm:hidden">↓</span>
+                  </button>
+                  <button
+                    onClick={() => handleFindOriginal(video)}
+                    disabled={searchingOriginal === video.id}
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium transition-colors"
+                    title="Buscar vídeo original (mais antigo)"
+                  >
+                    {searchingOriginal === video.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 border-b-2 border-white"></div>
+                        <span className="hidden sm:inline">Buscando...</span>
+                        <span className="sm:hidden">...</span>
+                      </>
+                    ) : (
+                      <>
+                        <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Original</span>
+                        <span className="sm:hidden">Orig</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ViralDiagnosis } from '@/app/types';
 import { 
   Brain, 
@@ -35,7 +35,14 @@ export function ViralDiagnosis({ videoId, videoTitle, platform = 'youtube', onCl
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatingScript, setGeneratingScript] = useState(false);
-  const { setScript, setActivePanel, setCurrentViralDiagnosis } = useEditorStore();
+  const { setScript, setActivePanel, setCurrentViralDiagnosis, currentViralDiagnosis } = useEditorStore();
+
+  // Verificar se já existe um diagnóstico no store para este vídeo
+  useEffect(() => {
+    if (currentViralDiagnosis && currentViralDiagnosis.videoId === videoId) {
+      setDiagnosis(currentViralDiagnosis);
+    }
+  }, [currentViralDiagnosis, videoId]);
 
   const generateDiagnosis = async () => {
     // Verificar se é TikTok (ainda não suportado)

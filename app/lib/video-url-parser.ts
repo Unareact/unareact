@@ -22,8 +22,13 @@ function extractYouTubeVideoId(url: string): string | null {
   // https://youtu.be/VIDEO_ID
   // https://www.youtube.com/embed/VIDEO_ID
   // https://m.youtube.com/watch?v=VIDEO_ID
+  // https://www.youtube.com/shorts/VIDEO_ID
+  // https://youtube.com/shorts/VIDEO_ID
   
   const patterns = [
+    // YouTube Shorts (verificar primeiro para não confundir com outros padrões)
+    /(?:youtube\.com\/shorts\/|www\.youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    // Padrões tradicionais
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
     /youtube\.com\/.*[?&]v=([a-zA-Z0-9_-]{11})/,
   ];
