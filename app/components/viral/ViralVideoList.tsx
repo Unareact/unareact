@@ -1369,7 +1369,8 @@ export function ViralVideoList() {
               </div>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {videos.length === 0 && !loading && (
