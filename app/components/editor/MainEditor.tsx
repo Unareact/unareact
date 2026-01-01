@@ -22,12 +22,12 @@ import { NarrationPanel } from '../ai-editing/NarrationPanel';
 import { AutoCaptionsPanel } from '../ai-editing/AutoCaptionsPanel';
 import { TransitionsPanel } from '../ai-editing/TransitionsPanel';
 import { TextOverlaysPanel } from '../ai-editing/TextOverlaysPanel';
+import { AIEditingChat } from '../ai-editing/AIEditingChat';
 import { AutoMediaSelector } from '../media/AutoMediaSelector';
 import { AIImageGenerator } from '../media/AIImageGenerator';
 import { AutoAssembly } from '../workflow/AutoAssembly';
 import { MediaLibrary } from '../media/MediaLibrary';
 import { VisualTemplateSelector } from '../templates/VisualTemplateSelector';
-import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { ResizableSplitter } from './ResizableSplitter';
 
 export function MainEditor() {
@@ -156,7 +156,7 @@ export function MainEditor() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden w-full h-full">
+      <div className="flex-1 overflow-y-auto w-full h-full">
         {/* Left Panel - Roteiro */}
         {activePanel === 'script' && (
           <div className="w-full lg:w-1/2 h-full overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
@@ -195,10 +195,49 @@ export function MainEditor() {
           </div>
         ) : (
           /* Center - Preview/Editor */
-          <div className="w-full h-full p-3 sm:p-4">
+          <div className="w-full h-full p-3 sm:p-4 overflow-y-auto">
             {activePanel === 'editor' ? (
-              /* Layout com barra vertical ajustável */
-              <ResizableSplitter
+              <div className="space-y-4">
+                {/* Guia do Processo de Edição */}
+                <div className="bg-gradient-to-r from-purple-50 via-blue-50 to-green-50 dark:from-purple-900/20 dark:via-blue-900/20 dark:to-green-900/20 rounded-lg p-4 border-2 border-purple-200 dark:border-purple-800">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                    <Video className="w-5 h-5 text-purple-600" />
+                    Como Funciona o Processo de Edição
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-purple-200 dark:border-purple-700">
+                      <div className="text-2xl mb-2">1️⃣</div>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 mb-1">Adicione Vídeos</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Upload, YouTube ou Biblioteca de Mídia
+                      </p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-purple-200 dark:border-purple-700">
+                      <div className="text-2xl mb-2">2️⃣</div>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 mb-1">Arraste na Timeline</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Clique e arraste clips • Arraste bordas para cortar
+                      </p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-purple-200 dark:border-purple-700">
+                      <div className="text-2xl mb-2">3️⃣</div>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 mb-1">Use a IA (Fácil!)</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Chat no lado direito: "Aplique cortes rápidos"
+                      </p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-purple-200 dark:border-purple-700">
+                      <div className="text-2xl mb-2">4️⃣</div>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 mb-1">Exporte</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Clique em Exportar Vídeo quando terminar
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Layout com barra vertical ajustável */}
+                <ResizableSplitter
                 defaultLeftWidth={50}
                 minLeftWidth={25}
                 maxLeftWidth={75}
@@ -253,10 +292,10 @@ export function MainEditor() {
                         <VisualTemplateSelector />
                       </div>
 
-                      {/* Edição por IA */}
+                      {/* Ferramentas de Edição por IA */}
                       <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
                         <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                          Edição por IA
+                          Ferramentas de Edição por IA
                         </h2>
                         <div className="space-y-4">
                           <AutoCutPanel />
@@ -273,13 +312,35 @@ export function MainEditor() {
                   </div>
                 }
                 right={
-                  <div className="h-full overflow-y-auto pl-3 sm:pl-4">
-                    <div className="sticky top-0">
+                  <div className="h-full flex flex-col pl-3 sm:pl-4 gap-4">
+                    {/* Video Player */}
+                    <div className="flex-shrink-0">
                       <VideoPlayer />
+                    </div>
+                    
+                    {/* Chat com IA - Abaixo do Vídeo */}
+                    <div className="flex-shrink-0">
+                      <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-purple-900/20 dark:via-blue-900/20 dark:to-pink-900/20 rounded-lg p-3 border-2 border-purple-200 dark:border-purple-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-7 h-7 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                              Assistente de Edição por IA
+                            </h3>
+                            <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                              Fale o que quer e eu faço automaticamente
+                            </p>
+                          </div>
+                        </div>
+                        <AIEditingChat />
+                      </div>
                     </div>
                   </div>
                 }
               />
+              </div>
             ) : (
               /* Layout normal para outros painéis */
               <div className="w-full h-full overflow-y-auto">
@@ -313,8 +374,6 @@ export function MainEditor() {
         )}
       </div>
 
-      {/* Ajuda de Atalhos de Teclado */}
-      <KeyboardShortcutsHelp />
     </div>
   );
 }

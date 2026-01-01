@@ -81,11 +81,11 @@ export function ResizableSplitter({
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   return (
-    <div ref={containerRef} className="flex h-full relative" style={{ height: '100%' }}>
+    <div ref={containerRef} className="flex relative" style={{ minHeight: '600px', height: 'auto' }}>
       {/* Left Panel */}
       <div
-        className="overflow-y-auto h-full"
-        style={{ width: `${leftWidth}%`, flexShrink: 0 }}
+        className="overflow-y-auto"
+        style={{ width: `${leftWidth}%`, flexShrink: 0, maxHeight: '100vh' }}
       >
         {left}
       </div>
@@ -110,8 +110,8 @@ export function ResizableSplitter({
 
       {/* Right Panel */}
       <div
-        className="overflow-y-auto h-full flex-1"
-        style={{ width: `${100 - leftWidth}%`, minWidth: 0 }}
+        className="overflow-y-auto flex-1"
+        style={{ width: `${100 - leftWidth}%`, minWidth: 0, maxHeight: '100vh' }}
       >
         {right}
       </div>

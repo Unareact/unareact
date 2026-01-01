@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { searchMedia } from '@/app/lib/media-search';
-import { Image, Video, Search, Loader2, Upload, X, CheckCircle2, Maximize2, Download, ExternalLink } from 'lucide-react';
+import { Image, Video, Search, Loader2, Upload, X, CheckCircle2, Maximize2, Download, ExternalLink, Grid3x3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface MediaItem {
@@ -28,6 +28,7 @@ export function MediaLibrary() {
   const [uploadedFiles, setUploadedFiles] = useState<MediaItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
 
   // Buscar mídia
   const handleSearch = async () => {
@@ -406,14 +407,24 @@ export function MediaLibrary() {
                 </p>
               )}
             </div>
-            {selectedItems.size > 0 && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setSelectedItems(new Set())}
-                className="text-sm px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-medium"
+                onClick={() => setShowGalleryModal(true)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-md hover:shadow-lg"
+                title="Ver todos em galeria grande (como Pexels/Unsplash)"
               >
-                Limpar
+                <Grid3x3 className="w-5 h-5" />
+                Ver Galeria Grande
               </button>
-            )}
+              {selectedItems.size > 0 && (
+                <button
+                  onClick={() => setSelectedItems(new Set())}
+                  className="text-sm px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-medium"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 max-h-[400px] overflow-y-auto pr-2">
           {allMedia.map((item) => {
@@ -428,16 +439,16 @@ export function MediaLibrary() {
                     : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700'
                 )}
               >
-                {/* Botão para abrir preview grande - Sempre visível */}
+                {/* Botão para abrir galeria grande - Sempre visível */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setPreviewItem(item);
+                    setShowGalleryModal(true);
                   }}
                   className="absolute top-2 right-2 z-20 p-2 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
-                  title="Ver em tamanho grande (ou clique 2x)"
+                  title="Ver todos em tamanho grande"
                 >
-                  <Maximize2 className="w-4 h-4 text-white" />
+                  <Grid3x3 className="w-4 h-4 text-white" />
                 </button>
                 
                 <div
@@ -549,7 +560,155 @@ export function MediaLibrary() {
         </div>
       )}
 
-      {/* Modal de Preview Grande */}
+      {/* Modal de Galeria Grande - Todos os Resultados */}
+      {showGalleryModal && allMedia.length > 0 && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col"
+        >
+          {/* Header do Modal */}
+          <div className="flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setShowGalleryModal(false)}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+              <div>
+                <h2 className="text-xl font-bold text-white">
+                  Galeria de Mídia
+                </h2>
+                <p className="text-sm text-gray-400">
+                  {allMedia.length} {allMedia.length === 1 ? 'item' : 'itens'} • {selectedItems.size} selecionado{selectedItems.size !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedItems.size > 0 && (
+                <button
+                  onClick={handleAddToTimeline}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  Adicionar {selectedItems.size} à Timeline
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedItems(new Set())}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              >
+                Limpar Seleção
+              </button>
+            </div>
+          </div>
+
+          {/* Grid Grande de Mídia */}
+          <div className="flex-1 overflow-y-auto p-6 bg-gray-950">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 max-w-7xl mx-auto">
+              {allMedia.map((item) => {
+                const isSelected = selectedItems.has(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      'relative group rounded-lg overflow-hidden border-2 transition-all cursor-pointer',
+                      isSelected
+                        ? 'border-purple-500 ring-4 ring-purple-500/50'
+                        : 'border-gray-700 hover:border-purple-400'
+                    )}
+                    onClick={() => toggleSelection(item.id)}
+                  >
+                    {item.type === 'video' ? (
+                      <video
+                        src={item.thumbnail || item.url}
+                        className="w-full aspect-video object-cover"
+                        muted
+                        playsInline
+                        onMouseEnter={(e) => {
+                          const video = e.currentTarget;
+                          video.play();
+                        }}
+                        onMouseLeave={(e) => {
+                          const video = e.currentTarget;
+                          video.pause();
+                          video.currentTime = 0;
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={item.thumbnail || item.url}
+                        alt={item.author || 'Media'}
+                        className="w-full aspect-video object-cover"
+                      />
+                    )}
+                    
+                    {/* Overlay de seleção */}
+                    {isSelected && (
+                      <div className="absolute inset-0 bg-purple-500/30 flex items-center justify-center">
+                        <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                          <CheckCircle2 className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Badge de fonte */}
+                    <div className="absolute top-2 left-2">
+                      <span className={cn(
+                        "text-xs font-bold px-2 py-1 text-white rounded-full shadow-lg",
+                        item.source === 'pexels' && 'bg-green-600',
+                        item.source === 'unsplash' && 'bg-black',
+                        item.source === 'pixabay' && 'bg-blue-600',
+                        item.source === 'upload' && 'bg-purple-600'
+                      )}>
+                        {item.source === 'pexels' && '📸 Pexels'}
+                        {item.source === 'unsplash' && '📷 Unsplash'}
+                        {item.source === 'pixabay' && '🖼️ Pixabay'}
+                        {item.source === 'upload' && '📤 Seu arquivo'}
+                      </span>
+                    </div>
+
+                    {/* Badge de tipo */}
+                    <div className="absolute top-2 right-2">
+                      {item.type === 'video' ? (
+                        <Video className="w-5 h-5 text-white bg-black/60 rounded p-1" />
+                      ) : (
+                        <Image className="w-5 h-5 text-white bg-black/60 rounded p-1" />
+                      )}
+                    </div>
+
+                    {/* Informações no hover */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {item.author && (
+                        <p className="text-white text-sm font-medium truncate">
+                          por {item.author}
+                        </p>
+                      )}
+                      <p className="text-white/80 text-xs">
+                        {item.width} × {item.height}px
+                        {item.duration && ` • ${Math.floor(item.duration)}s`}
+                      </p>
+                    </div>
+
+                    {/* Botão para ver em tela cheia */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewItem(item);
+                      }}
+                      className="absolute bottom-2 right-2 p-2 bg-black/60 hover:bg-black/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Ver em tela cheia"
+                    >
+                      <Maximize2 className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Preview Individual - Tela Cheia */}
       {previewItem && (
         <div 
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ViralVideo, ScriptSegment, ScriptGenerationParams } from '@/app/types';
 import { useEditorStore } from '@/app/stores/editor-store';
 import { ScriptEditor } from '../script/ScriptEditor';
@@ -29,6 +29,7 @@ interface ViralVideoWorkflowProps {
 
 export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflowProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { setScript, setActivePanel, addClip, clips, script } = useEditorStore();
   
   const [currentStep, setCurrentStep] = useState<WorkflowStep>(initialVideo ? 'download' : 'select');
@@ -177,7 +178,12 @@ export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflow
   };
 
   const handleAddMore = () => {
-    // Resetar para escolher outro vídeo
+    // Fechar o workflow e voltar para a lista de vídeos
+    // Isso permite ao usuário escolher outro vídeo da lista
+    if (onClose) {
+      onClose();
+    }
+    // Resetar estado para próxima vez que abrir
     setSelectedVideo(null);
     setDownloadedVideo(null);
     setGeneratedSegments([]);
@@ -189,7 +195,27 @@ export function ViralVideoWorkflow({ initialVideo, onClose }: ViralVideoWorkflow
     // Ir para o editor
     setScript(editedSegments);
     setActivePanel('editor');
-    router.push('/');
+    
+    // Salvar no localStorage para garantir persistência
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('una-viral-script', JSON.stringify(editedSegments));
+      localStorage.setItem('una-active-panel', 'editor');
+    }
+    
+    // Detectar a rota atual e redirecionar para o editor correto
+    let editorRoute = '/react/editor'; // Padrão
+    
+    if (pathname?.startsWith('/portal')) {
+      editorRoute = '/portal/editor';
+    } else if (pathname?.startsWith('/nutri')) {
+      editorRoute = '/nutri/editor';
+    } else if (pathname?.startsWith('/react')) {
+      editorRoute = '/react/editor';
+    } else if (pathname?.startsWith('/viral')) {
+      editorRoute = '/react/editor'; // Viral usa o editor do React
+    }
+    
+    router.push(editorRoute);
     if (onClose) onClose();
   };
 
