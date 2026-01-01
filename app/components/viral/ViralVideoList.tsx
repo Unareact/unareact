@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ViralVideo } from '@/app/types';
-import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight, Sparkles, History, Search, Link } from 'lucide-react';
+import { TrendingUp, Eye, Heart, MessageCircle, Download, ExternalLink, Globe, Brain, Calendar, TrendingDown, Filter, ArrowUpDown, Smartphone, X, FileText, ArrowRight, Sparkles, History, Search, Link, RotateCcw, CheckCircle } from 'lucide-react';
 import { UNIFIED_CATEGORIES, getCategoriesForPlatform, parseCategoryId } from '@/app/lib/unified-categories';
 import { YOUTUBE_CATEGORIES } from '@/app/lib/youtube-categories';
 import { cn } from '@/app/lib/utils';
@@ -13,6 +13,7 @@ import { RegionSelector } from './RegionSelector';
 import { parseVideoUrl } from '@/app/lib/video-url-parser';
 import { ViralVideoWorkflow } from './ViralVideoWorkflow';
 import { usePathname } from 'next/navigation';
+import { filterAIGenerated } from '@/app/lib/ai-video-detector';
 // import { PlatformStatus } from './PlatformStatus';
 
 // Chave para localStorage
@@ -53,7 +54,15 @@ export function ViralVideoList() {
 
   const lastSearch = loadLastSearch();
 
-  const [videos, setVideos] = useState<ViralVideo[]>(lastSearch?.videos || []);
+  // Estado para armazenar vídeos originais (antes do filtro de IA)
+  // Inicializar com vídeos do localStorage, mas aplicar filtro se excludeAI estava marcado
+  const initialVideos = lastSearch?.videos || [];
+  const [originalVideosList, setOriginalVideosList] = useState<ViralVideo[]>(initialVideos);
+  // Aplicar filtro inicial se excludeAI estava marcado
+  const initialExcludeAI = lastSearch?.excludeAI ?? false;
+  const [videos, setVideos] = useState<ViralVideo[]>(
+    initialVideos.length > 0 ? filterAIGenerated(initialVideos, initialExcludeAI) : []
+  );
   const [loading, setLoading] = useState(false); // Nunca carregar automaticamente - só quando usuário clicar em "Buscar"
   const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>(lastSearch?.platform || 'all');
   const [region, setRegion] = useState<string | string[]>(lastSearch?.region || 'ALL_AMERICAS');
@@ -92,6 +101,8 @@ export function ViralVideoList() {
   const [workflowVideo, setWorkflowVideo] = useState<ViralVideo | null>(null);
   const [searchingOriginal, setSearchingOriginal] = useState<string | null>(null);
   const [originalVideos, setOriginalVideos] = useState<ViralVideo[]>([]);
+  const [showOnlyOriginals, setShowOnlyOriginals] = useState(false);
+  const [originalVideoId, setOriginalVideoId] = useState<string | null>(null);
   const { addClip, setActivePanel, setPendingDownloadUrl, setScript, setCurrentViralDiagnosis } = useEditorStore();
 
   // Salvar pesquisa no localStorage
@@ -219,9 +230,14 @@ export function ViralVideoList() {
       }
       
       const videosData = data.videos || [];
-      setVideos(videosData);
+      // Salvar vídeos originais (antes do filtro de IA local)
+      // Nota: A API já pode ter aplicado o filtro se excludeAI estava marcado, mas vamos armazenar o que recebemos
+      setOriginalVideosList(videosData);
+      // Aplicar filtro local se necessário
+      const filteredVideos = filterAIGenerated(videosData, excludeAI);
+      setVideos(filteredVideos);
       const statsData = {
-        total: data.total || videosData.length || 0,
+        total: data.total || filteredVideos.length || 0,
         filtered: data.filtered || false,
         regions: data.regions || (Array.isArray(region) ? region.join(', ') : region)
       };
@@ -287,6 +303,25 @@ export function ViralVideoList() {
     }
   }, [platform, unifiedCategory]);
 
+  // Aplicar filtro de IA localmente quando excludeAI mudar (sem fazer nova busca)
+  useEffect(() => {
+    if (originalVideosList.length > 0) {
+      const filtered = filterAIGenerated(originalVideosList, excludeAI);
+      setVideos(filtered);
+      
+      // Atualizar stats se necessário
+      setStats(prevStats => {
+        if (!prevStats) return prevStats;
+        const removed = originalVideosList.length - filtered.length;
+        return {
+          ...prevStats,
+          total: filtered.length,
+          filtered: removed > 0 || prevStats.filtered,
+        };
+      });
+    }
+  }, [excludeAI, originalVideosList]);
+
   // NÃO buscar automaticamente - só quando o usuário clicar em "Buscar"
   // Isso evita consumo desnecessário de créditos da API
   // useEffect removido - busca apenas manual pelo botão
@@ -315,16 +350,21 @@ export function ViralVideoList() {
       }
 
       const data = await response.json();
-      setOriginalVideos(data.videos || []);
+      const foundVideos = data.videos || [];
+      setOriginalVideos(foundVideos);
+      setOriginalVideoId(video.id);
       
-      if (data.videos && data.videos.length > 0) {
-        // Adicionar os vídeos encontrados à lista atual
-        setVideos([...data.videos, ...videos]);
+      if (foundVideos.length > 0) {
+        // Mostrar apenas os vídeos originais encontrados
+        setVideos(foundVideos);
+        setShowOnlyOriginals(true);
         setStats({
-          total: (stats?.total || 0) + data.videos.length,
-          filtered: false,
-          regions: `Originais encontrados: ${data.videos.length}`,
+          total: foundVideos.length,
+          filtered: true,
+          regions: `Originais encontrados para: ${video.title.substring(0, 50)}...`,
         });
+      } else {
+        setError('Nenhum vídeo original encontrado. Este pode ser o vídeo original ou não há vídeos mais antigos relacionados.');
       }
     } catch (err: any) {
       console.error('Erro ao buscar vídeo original:', err);
@@ -1107,13 +1147,64 @@ export function ViralVideoList() {
         )}
       </div>
 
+      {/* Banner de Vídeos Originais */}
+      {showOnlyOriginals && originalVideos.length > 0 && (
+        <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border-2 border-orange-300 dark:border-orange-700 rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <CheckCircle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-200">
+                  🎯 Vídeos Originais Encontrados
+                </h3>
+                <p className="text-sm text-orange-700 dark:text-orange-300">
+                  {originalVideos.length} vídeo{originalVideos.length !== 1 ? 's' : ''} mais antigo{originalVideos.length !== 1 ? 's' : ''} encontrado{originalVideos.length !== 1 ? 's' : ''} (publicado{originalVideos.length !== 1 ? 's' : ''} antes do vídeo selecionado)
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowOnlyOriginals(false);
+                setOriginalVideos([]);
+                setOriginalVideoId(null);
+                // Restaurar lista original se houver
+                if (lastSearch?.videos && lastSearch.videos.length > 0) {
+                  setVideos(lastSearch.videos);
+                  setStats(lastSearch.stats || null);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 border border-orange-300 dark:border-orange-700 font-medium transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Voltar à Lista Normal
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Lista de Vídeos */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        {videos.map((video) => (
-          <div
-            key={video.id}
-            className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg transition-shadow"
-          >
+        {videos.map((video) => {
+          const isOriginal = showOnlyOriginals && originalVideos.some(ov => ov.id === video.id);
+          return (
+            <div
+              key={video.id}
+              className={cn(
+                "bg-white dark:bg-gray-900 rounded-lg border overflow-hidden hover:shadow-lg transition-shadow relative",
+                isOriginal ? "border-2 border-orange-400 dark:border-orange-600" : "border border-gray-200 dark:border-gray-800"
+              )}
+            >
+              {/* Badge de Vídeo Original */}
+              {isOriginal && (
+                <div className="absolute top-2 right-2 z-10">
+                  <span className="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-lg flex items-center gap-1">
+                    <History className="w-3 h-3" />
+                    Original
+                  </span>
+                </div>
+              )}
             {/* Thumbnail */}
             <div className="relative aspect-video bg-gray-200 dark:bg-gray-800">
               <img

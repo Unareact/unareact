@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { NutriTopicInput } from './NutriTopicInput';
 import { NutriTemplateSelector } from './NutriTemplateSelector';
 import { NutriScriptEditor } from './NutriScriptEditor';
@@ -48,12 +49,27 @@ export function NutriVideoCreator() {
   };
 
 
-  const handleGoToEditor = () => {
-    // Garantir que o roteiro está aplicado
-    setScript(editedSegments);
+  const handleGoToEditor = (e?: React.MouseEvent) => {
+    // Garantir que o roteiro está aplicado e salvo
+    // Usar editedSegments se disponível, senão usar o template selecionado
+    const segmentsToSave = editedSegments.length > 0 
+      ? editedSegments 
+      : (selectedTemplate?.segments || []);
+    
+    // Salvar no store e localStorage ANTES de navegar
+    setScript(segmentsToSave);
     setActivePanel('editor');
-    // Ir para o editor da área Nutri
-    router.push('/nutri/editor');
+    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('una-nutri-script', JSON.stringify(segmentsToSave));
+      localStorage.setItem('una-active-panel', 'editor');
+    }
+    
+    // Se for um evento de Link, não prevenir o comportamento padrão
+    // Se não, usar router.push como fallback
+    if (!e) {
+      router.push('/nutri/editor');
+    }
   };
 
   return (
@@ -201,13 +217,14 @@ export function NutriVideoCreator() {
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
               Seu roteiro está pronto. Agora você pode adicionar vídeos, imagens e editar no editor principal.
             </p>
-            <button
+            <Link
+              href="/nutri/editor"
               onClick={handleGoToEditor}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 mx-auto"
+              className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors mx-auto"
             >
               <Video className="w-5 h-5" />
               Ir para o Editor
-            </button>
+            </Link>
           </div>
         )}
       </div>
