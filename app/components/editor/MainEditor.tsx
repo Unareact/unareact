@@ -295,17 +295,18 @@ export function MainEditor() {
         {activePanel === 'preview' && (
           <div className="w-full lg:w-1/3 h-full overflow-y-auto p-3 sm:p-4">
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Informações do Projeto
-            </h2>
-            <div className="space-y-4 text-sm">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Status</p>
-                <p className="text-gray-900 dark:text-gray-100 font-medium">Em edição</p>
-              </div>
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Duração Total</p>
-                <p className="text-gray-900 dark:text-gray-100 font-medium">0:00</p>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Informações do Projeto
+              </h2>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400">Status</p>
+                  <p className="text-gray-900 dark:text-gray-100 font-medium">Em edição</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400">Duração Total</p>
+                  <p className="text-gray-900 dark:text-gray-100 font-medium">0:00</p>
+                </div>
               </div>
             </div>
           </div>
