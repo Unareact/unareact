@@ -145,7 +145,7 @@ export function NutriVideoCreator() {
               <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
                 Como você quer começar?
               </h3>
-              <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="grid md:grid-cols-3 gap-4 mb-6">
                 <button
                   onClick={() => {
                     // Mostrar input de tópico
@@ -176,6 +176,16 @@ export function NutriVideoCreator() {
                     Escolha entre 5 templates pré-configurados e otimizados
                   </p>
                 </button>
+                <Link
+                  href="/nutri/upload"
+                  className="p-6 border-2 border-purple-200 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all text-left"
+                >
+                  <Video className="w-8 h-8 text-purple-600 mb-3" />
+                  <h4 className="font-bold text-gray-900 mb-2">Editar Vídeo</h4>
+                  <p className="text-sm text-gray-600">
+                    Já tem um vídeo? Faça upload e edite direto
+                  </p>
+                </Link>
               </div>
             </div>
             <NutriTopicInput onTemplatesGenerated={handleTemplatesGenerated} />

@@ -5,7 +5,11 @@ import { useEditorStore } from '@/app/stores/editor-store';
 import { Download, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
-export function ExportButton() {
+interface ExportButtonProps {
+  variant?: 'button' | 'panel'; // 'button' para header, 'panel' para painel completo
+}
+
+export function ExportButton({ variant = 'button' }: ExportButtonProps) {
   const { clips, script } = useEditorStore();
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -63,19 +67,37 @@ export function ExportButton() {
     }
   };
 
-  if (clips.length === 0) {
+  // Variante botão simples para header
+  if (variant === 'button') {
     return (
-      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-        <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
-          <AlertCircle className="w-5 h-5" />
-          <p className="text-sm font-medium">
-            Adicione clips à timeline antes de exportar
-          </p>
-        </div>
-      </div>
+      <button
+        onClick={handleExport}
+        disabled={isExporting || clips.length === 0}
+        className={cn(
+          'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium',
+          clips.length === 0
+            ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+            : 'bg-yellow-500 hover:bg-yellow-600 text-white',
+          isExporting && 'opacity-50 cursor-not-allowed'
+        )}
+        title={clips.length === 0 ? 'Adicione clips à timeline antes de exportar' : 'Exportar vídeo'}
+      >
+        {isExporting ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Exportando...
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4" />
+            Exportar
+          </>
+        )}
+      </button>
     );
   }
 
+  // Variante painel completo (com todas as opções)
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800 space-y-4">
       <div className="flex items-center gap-2 mb-4">

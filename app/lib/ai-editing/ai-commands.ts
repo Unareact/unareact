@@ -9,7 +9,7 @@ import { suggestTransitions, applyTransitions, Transition } from './transitions'
 import { applyVisualTemplate, VISUAL_TEMPLATES } from '@/app/lib/visual-templates';
 
 export interface AICommand {
-  type: 'cut' | 'transition' | 'template' | 'speed' | 'caption' | 'narration' | 'text-overlay';
+  type: 'cut' | 'transition' | 'template' | 'speed' | 'caption' | 'narration' | 'text-overlay' | 'upload' | 'download' | 'search-media' | 'generate-image' | 'analyze' | 'optimize';
   action: string;
   params?: any;
   confidence: number;
@@ -166,6 +166,75 @@ export async function parseUserCommand(
     }
   }
   
+  // Comandos de upload
+  if (lowerInput.includes('upload') || lowerInput.includes('importar') || lowerInput.includes('adicionar arquivo') || lowerInput.includes('carregar')) {
+    return {
+      type: 'upload',
+      action: 'trigger-upload',
+      params: {},
+      confidence: 0.9,
+    };
+  }
+  
+  // Comandos de download
+  if (lowerInput.includes('baixar') || lowerInput.includes('download') || lowerInput.includes('youtube') || lowerInput.includes('tiktok')) {
+    const urlMatch = userInput.match(/(https?:\/\/[^\s]+)/);
+    if (urlMatch) {
+      return {
+        type: 'download',
+        action: 'download-video',
+        params: { url: urlMatch[0], platform: lowerInput.includes('tiktok') ? 'tiktok' : 'youtube' },
+        confidence: 0.9,
+      };
+    }
+  }
+  
+  // Comandos de busca de mídia
+  if (lowerInput.includes('buscar') || lowerInput.includes('procurar') || lowerInput.includes('imagem') || lowerInput.includes('vídeo')) {
+    const searchTerm = userInput.replace(/buscar|procurar|imagem|vídeo|video/gi, '').trim();
+    if (searchTerm.length > 2) {
+      return {
+        type: 'search-media',
+        action: 'search-media',
+        params: { query: searchTerm },
+        confidence: 0.85,
+      };
+    }
+  }
+  
+  // Comandos de gerar imagem
+  if (lowerInput.includes('gerar imagem') || lowerInput.includes('criar imagem') || lowerInput.includes('imagem de')) {
+    const description = userInput.replace(/gerar|criar|imagem de/gi, '').trim();
+    if (description.length > 3) {
+      return {
+        type: 'generate-image',
+        action: 'generate-image',
+        params: { prompt: description },
+        confidence: 0.85,
+      };
+    }
+  }
+  
+  // Comandos de análise
+  if (lowerInput.includes('analisar') || lowerInput.includes('analise') || lowerInput.includes('status') || lowerInput.includes('como está')) {
+    return {
+      type: 'analyze',
+      action: 'analyze-video',
+      params: {},
+      confidence: 0.9,
+    };
+  }
+  
+  // Comandos de otimização
+  if (lowerInput.includes('otimizar') || lowerInput.includes('melhorar') || lowerInput.includes('ajustar')) {
+    return {
+      type: 'optimize',
+      action: 'optimize-video',
+      params: {},
+      confidence: 0.85,
+    };
+  }
+  
   return null;
 }
 
@@ -265,6 +334,37 @@ export async function executeAICommand(
             message: `✅ Velocidade ajustada para ${command.params.speed}x em todos os clips!`,
             applied: true,
             data: { speed: command.params.speed },
+          };
+        }
+        break;
+        
+      case 'upload':
+        if (command.action === 'trigger-upload') {
+          // Trigger file input
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'video/*,image/*,audio/*';
+          input.onchange = async (e: any) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const url = URL.createObjectURL(file);
+              const isVideo = file.type.startsWith('video/');
+              const clip: VideoClip = {
+                id: `upload-${Date.now()}`,
+                startTime: clips.length > 0 ? Math.max(...clips.map(c => c.endTime)) : 0,
+                endTime: clips.length > 0 ? Math.max(...clips.map(c => c.endTime)) + 10 : 10,
+                source: url,
+                type: isVideo ? 'video' : 'image',
+              };
+              setClips([...clips, clip]);
+            }
+          };
+          input.click();
+          
+          return {
+            success: true,
+            message: '✅ Selecione o arquivo para importar',
+            applied: false,
           };
         }
         break;
