@@ -19,8 +19,9 @@ export function ImportButton() {
     input.type = 'file';
     input.accept = 'video/*,image/*,audio/*';
     input.multiple = true;
-    input.onchange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || []) as File[];
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const files = Array.from(target.files || []) as File[];
       for (const file of files) {
         const url = URL.createObjectURL(file);
         const isVideo = file.type.startsWith('video/');
