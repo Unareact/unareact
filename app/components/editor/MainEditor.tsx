@@ -28,6 +28,7 @@ import { AutoAssembly } from '../workflow/AutoAssembly';
 import { MediaLibrary } from '../media/MediaLibrary';
 import { VisualTemplateSelector } from '../templates/VisualTemplateSelector';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
+import { ResizableSplitter } from './ResizableSplitter';
 
 export function MainEditor() {
   const { activePanel, setActivePanel, script, setScript } = useEditorStore();
@@ -155,10 +156,10 @@ export function MainEditor() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden grid grid-cols-12 gap-3 sm:gap-4 p-3 sm:p-4">
+      <div className="flex-1 overflow-hidden w-full h-full">
         {/* Left Panel - Roteiro */}
         {activePanel === 'script' && (
-          <div className="col-span-12 lg:col-span-6 overflow-y-auto space-y-3 sm:space-y-4">
+          <div className="w-full lg:w-1/2 h-full overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
             <ScriptGenerator />
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
               <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -171,17 +172,17 @@ export function MainEditor() {
 
         {/* Painel Download */}
         {activePanel === 'download' ? (
-          <div className="col-span-12 overflow-y-auto">
+          <div className="w-full h-full overflow-y-auto p-3 sm:p-4">
             <YouTubeDownloader />
           </div>
         ) : activePanel === 'my-downloads' ? (
-          <div className="col-span-12 overflow-y-auto">
+          <div className="w-full h-full overflow-y-auto p-3 sm:p-4">
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
               <DownloadsList />
             </div>
           </div>
         ) : activePanel === 'viral' ? (
-          <div className="col-span-12 overflow-y-auto">
+          <div className="w-full h-full overflow-y-auto p-3 sm:p-4">
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
               <div className="flex items-center gap-2 mb-4 sm:mb-6">
                 <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
@@ -194,91 +195,97 @@ export function MainEditor() {
           </div>
         ) : (
           /* Center - Preview/Editor */
-          <div className={cn(
-            "overflow-y-auto",
-            activePanel === 'script' ? "col-span-12 lg:col-span-6" : "col-span-12 lg:col-span-8"
-          )}>
+          <div className="w-full h-full p-3 sm:p-4">
             {activePanel === 'editor' ? (
-              /* Layout: Funções à esquerda (50%), Preview à direita (50%) */
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                {/* Coluna Esquerda - Todas as Funções de Edição (50%) */}
-                <div className="space-y-3 sm:space-y-4">
-                  {/* Upload de Arquivos */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-                      <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        Upload de Arquivos
-                      </h2>
+              /* Layout com barra vertical ajustável */
+              <ResizableSplitter
+                defaultLeftWidth={50}
+                minLeftWidth={25}
+                maxLeftWidth={75}
+                storageKey="una-editor-split-width"
+                left={
+                  <div className="h-full overflow-y-auto pr-3 sm:pr-4">
+                    <div className="space-y-3 sm:space-y-4">
+                      {/* Upload de Arquivos */}
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                            Upload de Arquivos
+                          </h2>
+                        </div>
+                        <FileUploader />
+                      </div>
+
+                      {/* Timeline de Edição */}
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                        <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                          Timeline de Edição
+                        </h2>
+                        <EnhancedTimeline />
+                      </div>
+
+                      {/* Biblioteca de Mídia */}
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                        <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                          Biblioteca de Mídia
+                        </h2>
+                        <MediaLibrary />
+                      </div>
+
+                      {/* Mídia Automática */}
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                        <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                          Mídia Automática
+                        </h2>
+                        <div className="space-y-4">
+                          <AutoMediaSelector />
+                          <AIImageGenerator />
+                          <AutoAssembly />
+                        </div>
+                      </div>
+
+                      {/* Templates Visuais */}
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                        <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                          Templates
+                        </h2>
+                        <VisualTemplateSelector />
+                      </div>
+
+                      {/* Edição por IA */}
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+                        <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                          Edição por IA
+                        </h2>
+                        <div className="space-y-4">
+                          <AutoCutPanel />
+                          <NarrationPanel />
+                          <AutoCaptionsPanel />
+                          <TransitionsPanel />
+                          <TextOverlaysPanel />
+                        </div>
+                      </div>
+
+                      {/* Exportar Vídeo */}
+                      <ExportButton />
                     </div>
-                    <FileUploader />
                   </div>
-
-                  {/* Timeline de Edição */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
-                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                      Timeline de Edição
-                    </h2>
-                    <EnhancedTimeline />
-                  </div>
-
-                  {/* Biblioteca de Mídia */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
-                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                      Biblioteca de Mídia
-                    </h2>
-                    <MediaLibrary />
-                  </div>
-
-                  {/* Mídia Automática */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
-                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                      Mídia Automática
-                    </h2>
-                    <div className="space-y-4">
-                      <AutoMediaSelector />
-                      <AIImageGenerator />
-                      <AutoAssembly />
+                }
+                right={
+                  <div className="h-full overflow-y-auto pl-3 sm:pl-4">
+                    <div className="sticky top-0">
+                      <VideoPlayer />
                     </div>
                   </div>
-
-                  {/* Templates Visuais */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
-                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                      Templates
-                    </h2>
-                    <VisualTemplateSelector />
-                  </div>
-
-                  {/* Edição por IA */}
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
-                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                      Edição por IA
-                    </h2>
-                    <div className="space-y-4">
-                      <AutoCutPanel />
-                      <NarrationPanel />
-                      <AutoCaptionsPanel />
-                      <TransitionsPanel />
-                      <TextOverlaysPanel />
-                    </div>
-                  </div>
-
-                  {/* Exportar Vídeo */}
-                  <ExportButton />
-                </div>
-
-                {/* Coluna Direita - Preview (50%, fixo) */}
-                <div className="lg:sticky lg:top-4 lg:h-fit lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-                  <div className="w-full">
-                    <VideoPlayer />
-                  </div>
-                </div>
-              </div>
+                }
+              />
             ) : (
               /* Layout normal para outros painéis */
-              <div className="space-y-3 sm:space-y-4">
-                <VideoPlayer />
+              <div className="w-full h-full overflow-y-auto">
+                <div className="space-y-3 sm:space-y-4">
+                  <VideoPlayer />
+                </div>
               </div>
             )}
           </div>
@@ -286,7 +293,8 @@ export function MainEditor() {
 
         {/* Right Panel - Preview Info */}
         {activePanel === 'preview' && (
-          <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
+          <div className="w-full lg:w-1/3 h-full overflow-y-auto p-3 sm:p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-800">
             <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Informações do Projeto
             </h2>
