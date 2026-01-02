@@ -27,11 +27,26 @@ interface ChatMessage {
 
 export function CompleteAIChat() {
   const { script, clips, setClips, setScript, duration, addClip } = useEditorStore();
+  
+  // Detectar contexto do editor
+  const editorContext = typeof window !== 'undefined' ? localStorage.getItem('una-editor-context') : null;
+  
+  // Mensagem de boas-vindas baseada no contexto
+  const getWelcomeMessage = () => {
+    if (editorContext === 'vendas') {
+      return `🎯 **Bem-vindo ao Editor de Anúncios por IA!**\n\nEu sou sua assistente especializada em criar **anúncios que convertem**! Posso fazer tudo através de conversa!\n\n**O que eu posso fazer:**\n\n📝 **Roteiro de Vendas:** Criar roteiros focados em conversão\n✂️ **Edição Profissional:** Cortes, transições, templates de anúncios\n📥 **Mídia:** Upload, download YouTube/TikTok, buscar imagens\n🎨 **Efeitos:** Legendas, narração, CTAs, textos de vendas\n📊 **Análise:** Analisar vídeos virais e aplicar insights em anúncios\n💡 **Otimização:** Otimizar para conversão e ROI\n\n**Como usar:**\n• Me diga o que precisa\n• Eu mostro preview e você aprova\n• Eu executo tudo automaticamente\n\nVamos criar anúncios que vendem! Me diga o que você quer fazer! 🚀`;
+    } else if (editorContext === 'viral') {
+      return `🔥 **Bem-vindo ao Editor de Vídeos Virais por IA!**\n\nEu sou sua assistente especializada em criar **vídeos virais com muitos views**! Posso fazer tudo através de conversa!\n\n**O que eu posso fazer:**\n\n📝 **Roteiro Viral:** Criar roteiros com hooks poderosos\n✂️ **Edição Dinâmica:** Cortes rápidos, transições, ritmo viral\n📥 **Mídia:** Upload, download YouTube/TikTok, buscar imagens\n🎨 **Efeitos:** Legendas, narração, textos impactantes\n📊 **Análise:** Analisar vídeos virais e replicar padrões\n⚡ **Otimização:** Otimizar para views e engajamento\n\n**Como usar:**\n• Me diga o que precisa\n• Eu mostro preview e você aprova\n• Eu executo tudo automaticamente\n\nVamos criar vídeos virais! Me diga o que você quer fazer! 🚀`;
+    } else {
+      return `🎬 **Bem-vindo ao Editor Completo por IA!**\n\nEu sou sua assistente de edição inteligente e posso fazer **TUDO** através de conversa!\n\n**O que eu posso fazer:**\n\n📝 **Roteiro:** Criar, editar, otimizar roteiros\n✂️ **Edição:** Cortes, transições, velocidade, templates\n📥 **Mídia:** Upload, download YouTube/TikTok, buscar imagens\n🎨 **Efeitos:** Legendas, narração, textos, filtros\n📊 **Análise:** Analisar vídeo, otimizar, sugerir melhorias\n\n**Como usar:**\n• Me diga o que precisa\n• Eu mostro preview e você aprova\n• Eu executo tudo automaticamente\n\nVamos começar! Me diga o que você quer fazer! 🚀`;
+    }
+  };
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: `🎬 **Bem-vindo ao Editor Completo por IA!**\n\nEu sou sua assistente de edição inteligente e posso fazer **TUDO** através de conversa!\n\n**O que eu posso fazer:**\n\n📝 **Roteiro:** Criar, editar, otimizar roteiros\n✂️ **Edição:** Cortes, transições, velocidade, templates\n📥 **Mídia:** Upload, download YouTube/TikTok, buscar imagens\n🎨 **Efeitos:** Legendas, narração, textos, filtros\n📊 **Análise:** Analisar vídeo, otimizar, sugerir melhorias\n\n**Como usar:**\n• Me diga o que precisa\n• Eu mostro preview e você aprova\n• Eu executo tudo automaticamente\n\nVamos começar! Me diga o que você quer fazer! 🚀`,
+      content: getWelcomeMessage(),
       timestamp: new Date(),
       showScript: true,
       showTimeline: true,
@@ -513,8 +528,16 @@ export function CompleteAIChat() {
               <Bot className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">Editor Completo por IA</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Converse e eu executo tudo</p>
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                {editorContext === 'vendas' ? 'Editor de Anúncios por IA' : 
+                 editorContext === 'viral' ? 'Editor de Vídeos Virais por IA' : 
+                 'Editor Completo por IA'}
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {editorContext === 'vendas' ? 'Crie anúncios que convertem' : 
+                 editorContext === 'viral' ? 'Crie vídeos virais com muitos views' : 
+                 'Converse e eu executo tudo'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">

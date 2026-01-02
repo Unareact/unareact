@@ -85,10 +85,13 @@ export function MainEditor() {
 
   // Removido handlePortalMagraClick - não deve permitir navegação entre áreas
 
-  // Detectar área atual para botão voltar
+  // Detectar área atual para botão voltar e contexto
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const editorContext = typeof window !== 'undefined' ? localStorage.getItem('una-editor-context') : null;
+  
   const getBackUrl = () => {
-    if (pathname.includes('/nutri')) return '/nutri';
+    if (pathname.includes('/vendas')) return '/portal'; // Portal Magra usa /vendas/editor
+    if (pathname.includes('/viral')) return '/viral';
     if (pathname.includes('/portal')) return '/portal';
     if (pathname.includes('/react')) return '/react';
     return '/';
