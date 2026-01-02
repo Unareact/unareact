@@ -12,7 +12,9 @@ import {
   Scissors,
   ArrowRight,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  ShoppingCart,
+  Target
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -34,8 +36,25 @@ export default function Home() {
         'Editor completo',
         'Exportação de vídeos'
       ],
-      route: '/react',
+      route: '/viral/editor',
       badge: 'Popular'
+    },
+    {
+      id: 'vendas',
+      name: 'Vendas',
+      icon: Target,
+      description: 'Vídeos, posts e criativos de vendas em geral',
+      color: 'from-yellow-600 to-orange-600',
+      hoverColor: 'from-yellow-700 to-orange-700',
+      bgColor: 'from-yellow-50 to-orange-50',
+      features: [
+        'Criativos de anúncios',
+        'Roteiros de vendas',
+        'Templates de marketing',
+        'Foco em conversão'
+      ],
+      route: '/vendas',
+      badge: 'Novo'
     },
     {
       id: 'portal',
@@ -52,23 +71,6 @@ export default function Home() {
         'Foco em resultados'
       ],
       route: '/portal',
-      badge: 'Novo'
-    },
-    {
-      id: 'nutri',
-      name: 'YLADA Nutri',
-      icon: Apple,
-      description: 'Vídeos de nutrição e marketing',
-      color: 'from-green-600 to-emerald-600',
-      hoverColor: 'from-green-700 to-emerald-700',
-      bgColor: 'from-green-50 to-emerald-50',
-      features: [
-        '5 templates prontos',
-        'Workflow guiado',
-        'CTAs otimizados',
-        'Foco em conversão'
-      ],
-      route: '/nutri',
       badge: null
     },
   ];
@@ -89,14 +91,14 @@ export default function Home() {
               </div>
             </div>
             <nav className="hidden md:flex items-center gap-6">
-              <Link href="/react" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+              <Link href="/viral/editor" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
                 React
+              </Link>
+              <Link href="/vendas/editor" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                Vendas
               </Link>
               <Link href="/portal" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
                 Portal Magra
-              </Link>
-              <Link href="/nutri" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                YLADA Nutri
               </Link>
             </nav>
           </div>
@@ -115,7 +117,7 @@ export default function Home() {
         </div>
 
         {/* Business Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto mb-12">
           {businesses.map((business) => {
             const Icon = business.icon;
             return (
@@ -178,8 +180,8 @@ export default function Home() {
           </div>
           <div className="text-center p-6 bg-white rounded-xl shadow-md">
             <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-            <div className="text-3xl font-bold text-gray-900 mb-1">3</div>
-            <div className="text-sm text-gray-600">Negócios Ativos</div>
+            <div className="text-3xl font-bold text-gray-900 mb-1">2</div>
+            <div className="text-sm text-gray-600">Modelos de Negócio</div>
           </div>
           <div className="text-center p-6 bg-white rounded-xl shadow-md">
             <Sparkles className="w-8 h-8 text-purple-500 mx-auto mb-2" />
