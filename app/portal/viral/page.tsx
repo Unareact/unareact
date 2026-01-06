@@ -16,15 +16,16 @@ export default function PortalViralPage() {
   useEffect(() => {
     // Aplicar filtros do Portal Magra automaticamente ao carregar a página
     const portalMagraFilters = {
-      platform: 'all',
-      region: 'US',
+      platform: 'youtube', // Apenas YouTube
+      region: 'US', // Padrão: Estados Unidos
       minLikes: 0,
       maxDaysAgo: 0,
       minLikesPerDay: 0,
-      unifiedCategory: 'prod:portal-magra',
+      unifiedCategory: 'prod:portal-magra', // Categoria Portal Magra (receitas, alimentação, nutrição)
       category: '0',
       productCategory: 'portal-magra',
-      sortBy: 'viralScore',
+      shortsOnly: true, // Apenas Shorts
+      sortBy: 'viralScore', // Ordenar por viralScore
       videos: [],
       stats: { total: 0, filtered: false, regions: 'US' },
     };
@@ -70,7 +71,7 @@ export default function PortalViralPage() {
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold">Portal Magra - Vídeos Virais</h1>
                     <p className="text-sm sm:text-base text-white/90 mt-1">
-                      Encontre vídeos virais para criar conteúdo de conversão
+                      Escanear vídeos de alimentação, nutrição e receitas que engajam mulheres brasileiras nos EUA
                     </p>
                   </div>
                 </div>
@@ -92,11 +93,16 @@ export default function PortalViralPage() {
             {/* Info sobre os filtros aplicados */}
             <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
               <p className="text-sm text-purple-800 dark:text-purple-300">
-                <strong>✨ Filtros aplicados:</strong> Buscando vídeos sobre hábitos alimentares, rotina saudável e 
-                acompanhamento para mulheres no momento de decisão de se cuidar. Região: EUA.
+                <strong>✨ Filtros Automáticos Aplicados:</strong>
               </p>
-              <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
-                <strong>🎯 Objetivo:</strong> Encontrar vídeos virais → Gerar roteiro de conversão → Criar vídeo para 
+              <ul className="text-xs text-purple-700 dark:text-purple-300 mt-2 space-y-1 list-disc list-inside">
+                <li><strong>Plataforma:</strong> Apenas YouTube</li>
+                <li><strong>Tipo:</strong> Apenas Shorts (≤60s)</li>
+                <li><strong>Categoria:</strong> Receitas, Alimentação, Nutrição, Saúde e Bem-estar</li>
+                <li><strong>Região:</strong> Escolha entre Toda América, Só EUA ou Só Brasil</li>
+              </ul>
+              <p className="text-xs text-purple-600 dark:text-purple-400 mt-3">
+                <strong>🎯 Objetivo:</strong> Encontrar vídeos virais sobre alimentação saudável, receitas e nutrição → Gerar roteiro de conversão → Criar vídeo para 
                 chamar para avaliação de $10 ou formulário do YLADA Coach.
               </p>
             </div>

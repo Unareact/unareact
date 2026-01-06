@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    // Detectar se é Portal (tem productCategory portal-magra)
+    const isPortalPage = productCategory === 'portal-magra';
+    
     const minLikes = parseInt(searchParams.get('minLikes') || '0');
     const maxDaysAgo = parseInt(searchParams.get('maxDaysAgo') || '0');
     const minLikesPerDay = parseFloat(searchParams.get('minLikesPerDay') || '0');
@@ -414,14 +417,21 @@ async function searchYouTubeByKeywords(
     // Verificar se a API Key está válida
     if (!apiKey || apiKey.length < 30) {
       console.error('❌ API Key inválida ou não configurada');
+      console.error(`   Tamanho: ${apiKey?.length || 0} caracteres`);
+      console.error('   Configure YOUTUBE_API_KEY no .env.local');
       return [];
     }
+    
+    console.log(`✅ API Key válida (${apiKey.length} caracteres)`);
 
     const category = getCategoryById(productCategory);
     if (!category || category.keywords.length === 0) {
       console.warn('⚠️ Categoria não encontrada ou sem palavras-chave');
+      console.warn(`   productCategory: ${productCategory}`);
       return [];
     }
+    
+    console.log(`✅ Categoria encontrada: ${category.name} (${category.keywords.length} palavras-chave)`);
 
     // Para Portal Magra, fazer múltiplas buscas com diferentes combinações
     let allSearchItems: any[] = [];
@@ -457,6 +467,7 @@ async function searchYouTubeByKeywords(
             maxResults: 50, // Buscar mais vídeos por query
             order: 'viewCount',
             relevanceLanguage: 'pt',
+            regionCode: 'US', // Usar US como padrão para busca (YouTube Search não suporta múltiplas regiões)
           } as any);
           
           const items = searchResponse.data.items || [];
@@ -589,8 +600,11 @@ async function searchYouTubeByKeywords(
 
     if (videoIds.length === 0) {
       console.warn('⚠️ Nenhum videoId válido encontrado nos resultados da busca');
+      console.warn('⚠️ Debug: allSearchItems sample:', JSON.stringify(allSearchItems.slice(0, 2), null, 2));
       return [];
     }
+    
+    console.log(`✅ Portal Magra: ${videoIds.length} videoIds válidos extraídos`);
 
     console.log(`📹 Portal Magra: Buscando detalhes de ${videoIds.length} vídeos...`);
 
@@ -658,6 +672,8 @@ async function searchYouTubeByKeywords(
         likesPerDay: Math.round(likesPerDay),
       };
     });
+    
+    console.log(`📊 Portal Magra: ${videos.length} vídeos antes de aplicar filtros`);
 
     // Aplicar filtros
     let filteredVideos = [...videos];
@@ -667,9 +683,24 @@ async function searchYouTubeByKeywords(
       const before = filteredVideos.length;
       filteredVideos = filteredVideos.filter(video => {
         const durationSeconds = parseDurationToSeconds(video.duration);
-        return durationSeconds > 0 && durationSeconds <= 60;
+        const isShort = durationSeconds > 0 && durationSeconds <= 60;
+        return isShort;
       });
       console.log(`Filtro de Shorts: ${before} → ${filteredVideos.length} vídeos`);
+      if (filteredVideos.length === 0 && before > 0) {
+        console.warn(`⚠️ ATENÇÃO: Todos os ${before} vídeos foram removidos pelo filtro de Shorts!`);
+        console.warn(`⚠️ Exemplo de durações encontradas:`, videos.slice(0, Math.min(5, before)).map(v => ({ 
+          title: v.title?.substring(0, 30), 
+          duration: v.duration, 
+          seconds: parseDurationToSeconds(v.duration) 
+        })));
+        // Se todos foram removidos, retornar os vídeos originais (sem filtro de Shorts) para debug
+        // Mas apenas se for Portal Magra e não houver outros filtros restritivos
+        if (productCategory === 'portal-magra' && maxDaysAgo === 0 && minLikesPerDay === 0) {
+          console.warn(`⚠️ Portal Magra: Retornando vídeos sem filtro de Shorts para garantir resultados`);
+          filteredVideos = videos; // Retornar todos os vídeos sem filtrar por Shorts
+        }
+      }
     }
 
     // Filtrar por curtidas
@@ -758,7 +789,26 @@ async function searchYouTubeByKeywords(
     console.log(`✅ Busca por palavras-chave: ${finalVideos.length} vídeos finais (de ${videos.length} encontrados, ${filteredVideos.length} após filtros)`);
     return finalVideos;
   } catch (error: any) {
-    console.error('❌ Erro ao buscar vídeos por palavras-chave:', error);
+    const errorMessage = error.message || error.toString();
+    console.error('❌ Erro ao buscar vídeos por palavras-chave:', {
+      message: errorMessage,
+      error: error,
+      productCategory,
+      regionParam,
+      shortsOnly,
+      apiKeyLength: apiKey?.length || 0
+    });
+    
+    // Se for erro de quota, logar mais detalhes
+    if (errorMessage.includes('quota') || errorMessage.includes('quotaExceeded')) {
+      console.error('❌ QUOTA DO YOUTUBE EXCEDIDA!');
+      console.error('   A quota diária de 10.000 unidades foi excedida.');
+      console.error('   Soluções:');
+      console.error('   1. Aguarde 24 horas para resetar a quota');
+      console.error('   2. Solicite aumento de quota no Google Cloud Console');
+      console.error('   3. Use uma API Key diferente');
+    }
+    
     return [];
   }
 }
@@ -814,11 +864,35 @@ async function getYouTubeVideosData(
     // Se houver filtro de categoria de produto, fazer busca por palavras-chave ao invés de trending
     if (productCategory && productCategory !== 'all') {
       console.log(`🔍 Portal Magra: Buscando por palavras-chave (productCategory: ${productCategory})`);
+      console.log(`🔍 Parâmetros da busca:`, {
+        regionParam,
+        maxResults,
+        maxDaysAgo,
+        minLikesPerDay,
+        sortBy,
+        shortsOnly,
+        apiKeyLength: apiKey?.length || 0
+      });
+      
+      // Garantir pelo menos 20 vídeos finais para Portal
+      const minResults = 20;
+      const effectiveMaxResults = Math.max(maxResults, minResults); // Garantir pelo menos 20
+      
+      // Aumentar significativamente o número de vídeos buscados quando há filtros restritivos
+      let searchMultiplier = 3; // Sempre buscar mais para garantir resultados
+      if (maxDaysAgo > 0) searchMultiplier = 5; // Se tem filtro de data, buscar 5x mais
+      if (minLikesPerDay > 0) searchMultiplier = Math.max(searchMultiplier, 5); // Se tem filtro de crescimento, buscar 5x mais
+      
+      const videosToSearch = effectiveMaxResults * searchMultiplier;
+      console.log(`🔍 Buscando ${videosToSearch} vídeos (multiplier: ${searchMultiplier}) para garantir resultados após filtros`);
+      
+      // Sempre usar minLikes = 0 (filtro removido)
+      console.log(`🚀 Chamando searchYouTubeByKeywords...`);
       const keywordResults = await searchYouTubeByKeywords(
         productCategory,
         regionParam,
-        maxResults * 2, // Buscar mais resultados para ter opções após filtros
-        minLikes,
+        videosToSearch,
+        0, // Sempre 0 (filtro removido)
         maxDaysAgo,
         minLikesPerDay,
         sortBy,
@@ -826,12 +900,173 @@ async function getYouTubeVideosData(
         apiKey
       );
       console.log(`✅ Portal Magra: ${keywordResults.length} vídeos retornados da busca por palavras-chave`);
-      return keywordResults;
+      
+      // Se não encontrou vídeos suficientes com filtros restritivos, tentar com filtros mais flexíveis
+      if (keywordResults.length < minResults && (maxDaysAgo > 0 || minLikesPerDay > 0)) {
+        console.log(`⚠️ Apenas ${keywordResults.length} vídeos encontrados com filtros restritivos. Tentando complementar com filtros mais flexíveis...`);
+        const relaxedResults = await searchYouTubeByKeywords(
+          productCategory,
+          regionParam,
+          videosToSearch * 2, // Buscar ainda mais
+          0, // Sempre 0 para minLikes
+          Math.max(30, maxDaysAgo * 3), // Triplicar o período de dias (mais flexível), mínimo 30 dias
+          0, // Remover filtro de minLikesPerDay
+          sortBy,
+          shortsOnly,
+          apiKey
+        );
+        
+        // Combinar resultados, removendo duplicatas
+        const combinedResults = [...keywordResults];
+        const existingIds = new Set(keywordResults.map(v => v.id));
+        
+        for (const video of relaxedResults) {
+          if (!existingIds.has(video.id) && combinedResults.length < Math.max(minResults, effectiveMaxResults * 2)) {
+            combinedResults.push(video);
+            existingIds.add(video.id);
+          }
+        }
+        
+        console.log(`✅ Portal Magra (combinado): ${combinedResults.length} vídeos encontrados (${keywordResults.length} com filtros + ${combinedResults.length - keywordResults.length} relaxados)`);
+        
+        // Garantir pelo menos minResults vídeos
+        if (combinedResults.length < minResults) {
+          console.log(`⚠️ Apenas ${combinedResults.length} vídeos. Tentando busca sem filtros restritivos para completar...`);
+          const fallbackResults = await searchYouTubeByKeywords(
+            productCategory,
+            regionParam,
+            videosToSearch * 3, // Buscar muito mais
+            0, // Sem filtro de minLikes
+            0, // Sem filtro de maxDaysAgo
+            0, // Sem filtro de minLikesPerDay
+            sortBy,
+            shortsOnly,
+            apiKey
+          );
+          
+          // Adicionar vídeos do fallback até atingir minResults
+          for (const video of fallbackResults) {
+            if (!existingIds.has(video.id) && combinedResults.length < Math.max(minResults, effectiveMaxResults * 2)) {
+              combinedResults.push(video);
+              existingIds.add(video.id);
+            }
+          }
+        }
+        
+        return combinedResults.slice(0, Math.max(minResults, effectiveMaxResults * 2));
+      }
+      
+      // Se encontrou resultados, garantir pelo menos minResults
+      if (keywordResults.length > 0) {
+        // Se tem menos que minResults, tentar complementar
+        if (keywordResults.length < minResults) {
+          console.log(`⚠️ Apenas ${keywordResults.length} vídeos. Tentando complementar para atingir ${minResults}...`);
+          const fallbackResults = await searchYouTubeByKeywords(
+            productCategory,
+            regionParam,
+            videosToSearch * 2,
+            0, // Sempre 0 (filtro removido)
+            Math.max(30, maxDaysAgo * 2), // Período mais flexível
+            0, // Sem filtro de minLikesPerDay
+            sortBy,
+            shortsOnly,
+            apiKey
+          );
+          
+          const existingIds = new Set(keywordResults.map(v => v.id));
+          const combined = [...keywordResults];
+          
+          for (const video of fallbackResults) {
+            if (!existingIds.has(video.id) && combined.length < Math.max(minResults, effectiveMaxResults * 2)) {
+              combined.push(video);
+              existingIds.add(video.id);
+            }
+          }
+          
+          console.log(`✅ Portal Magra (complementado): ${combined.length} vídeos encontrados`);
+          
+          // Se ainda não tem 20, tentar sem filtros
+          if (combined.length < minResults) {
+            console.log(`⚠️ Apenas ${combined.length} vídeos. Tentando busca sem filtros...`);
+            const finalFallback = await searchYouTubeByKeywords(
+              productCategory,
+              regionParam,
+              videosToSearch * 3,
+              0, // Sempre 0
+              0, // Sem filtro de data
+              0, // Sem filtro de crescimento
+              sortBy,
+              shortsOnly,
+              apiKey
+            );
+            
+            for (const video of finalFallback) {
+              if (!existingIds.has(video.id) && combined.length < Math.max(minResults, effectiveMaxResults * 2)) {
+                combined.push(video);
+                existingIds.add(video.id);
+              }
+            }
+          }
+          
+          return combined.slice(0, Math.max(minResults, effectiveMaxResults * 2));
+        }
+        
+        return keywordResults;
+      }
+      
+      // Se não encontrou nada, tentar uma última vez sem filtros
+      console.log(`⚠️ Nenhum vídeo encontrado. Tentando busca sem filtros restritivos...`);
+      
+      // Se shortsOnly estava ativo e não encontrou nada, tentar sem esse filtro primeiro
+      if (shortsOnly) {
+        console.log(`⚠️ Tentando buscar sem filtro de Shorts (pode encontrar vídeos mais longos)...`);
+        const fallbackWithoutShorts = await searchYouTubeByKeywords(
+          productCategory,
+          regionParam,
+          videosToSearch * 3, // Buscar muito mais
+          0, // Sempre 0 (filtro removido)
+          0, // Sem filtro de maxDaysAgo
+          0, // Sem filtro de minLikesPerDay
+          sortBy,
+          false, // Desabilitar shortsOnly temporariamente
+          apiKey
+        );
+        
+        if (fallbackWithoutShorts.length > 0) {
+          console.log(`✅ Portal Magra (fallback sem Shorts): ${fallbackWithoutShorts.length} vídeos encontrados`);
+          // Filtrar apenas os Shorts do resultado
+          const shortsVideos = fallbackWithoutShorts.filter(video => {
+            const durationSeconds = parseDurationToSeconds(video.duration);
+            return durationSeconds > 0 && durationSeconds <= 60;
+          });
+          console.log(`✅ Após filtrar Shorts: ${shortsVideos.length} vídeos`);
+          return shortsVideos.length > 0 ? shortsVideos : fallbackWithoutShorts.slice(0, minResults);
+        }
+      }
+      
+      // Última tentativa: buscar sem nenhum filtro
+      const fallbackResults = await searchYouTubeByKeywords(
+        productCategory,
+        regionParam,
+        videosToSearch * 3, // Buscar muito mais
+        0, // Sempre 0 (filtro removido)
+        0, // Sem filtro de maxDaysAgo
+        0, // Sem filtro de minLikesPerDay
+        sortBy,
+        false, // Desabilitar shortsOnly
+        apiKey
+      );
+      console.log(`✅ Portal Magra (fallback final): ${fallbackResults.length} vídeos encontrados sem filtros restritivos`);
+      return fallbackResults;
     }
     
-    // Se houver filtro de curtidas, buscar mais vídeos para ter mais opções
+    // Se houver filtros restritivos, buscar mais vídeos para garantir resultados
     let searchLimit = maxResults;
-    if (minLikes > 0) {
+    if (minLikes > 0 || maxDaysAgo > 0 || minLikesPerDay > 0) {
+      // Aumentar significativamente quando há filtros restritivos
+      searchLimit = Math.max(maxResults * 5, 200);
+      console.log(`🔍 Filtros restritivos detectados. Buscando ${searchLimit} vídeos para garantir resultados.`);
+    } else if (minLikes > 0) {
       searchLimit = Math.max(maxResults * 3, 100);
     }
     

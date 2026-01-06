@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ViralVideo } from '@/app/types';
 import { FileText, Sparkles, ArrowRight, Copy, Check, Loader2 } from 'lucide-react';
 import { useEditorStore } from '@/app/stores/editor-store';
@@ -120,10 +120,18 @@ Não deixe para depois. Sua transformação começa AGORA!`;
       setEditorScript(clips as any);
     }
 
-    // Redirecionar para o editor
-    router.push('/');
+    // Redirecionar direto para o editor do Portal
+    router.push('/portal/editor');
     setActivePanel('editor');
   };
+
+  // Gerar roteiro automaticamente quando o componente montar
+  useEffect(() => {
+    if (!script && !loading) {
+      generateScript();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
@@ -134,10 +142,10 @@ Não deixe para depois. Sua transformação começa AGORA!`;
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              Gerar Roteiro para Portal Magra
+              Roteiro Gerado
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Roteiro focado em conversão para avaliação de $10
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              {video.title.substring(0, 60)}...
             </p>
           </div>
         </div>
@@ -149,36 +157,14 @@ Não deixe para depois. Sua transformação começa AGORA!`;
         </button>
       </div>
 
-      <div className="mb-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-        <p className="text-sm text-purple-800 dark:text-purple-300">
-          <strong>Vídeo base:</strong> {video.title}
-        </p>
-        <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-          {video.viewCount.toLocaleString()} views • {video.likeCount.toLocaleString()} likes
-        </p>
-      </div>
-
-      {!script && (
-        <button
-          onClick={generateScript}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Gerando roteiro...
-            </>
-          ) : (
-            <>
-              <FileText className="w-5 h-5" />
-              Gerar Roteiro de Conversão
-            </>
-          )}
-        </button>
+      {loading && (
+        <div className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          Gerando roteiro automaticamente...
+        </div>
       )}
 
-      {script && (
+      {script && !loading && (
         <div className="space-y-4">
           <div className="relative">
             <textarea
@@ -211,18 +197,11 @@ Não deixe para depois. Sua transformação começa AGORA!`;
             </button>
             <button
               onClick={applyToEditor}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all"
+              className="flex-2 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
             >
-              Aplicar ao Editor
-              <ArrowRight className="w-4 h-4" />
+              Ir para Editor
+              <ArrowRight className="w-5 h-5" />
             </button>
-          </div>
-
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-xs text-blue-800 dark:text-blue-300">
-              <strong>💡 Dica:</strong> Este roteiro é otimizado para converter visualizações em avaliações de $10. 
-              Você pode editar e personalizar antes de aplicar ao editor.
-            </p>
           </div>
         </div>
       )}

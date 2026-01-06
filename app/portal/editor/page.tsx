@@ -11,6 +11,11 @@ function PortalEditorContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Salvar contexto do Portal
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('una-editor-context', 'portal');
+    }
+
     const panel = searchParams.get('panel');
     if (panel && ['script', 'editor', 'preview', 'viral', 'download'].includes(panel)) {
       setActivePanel(panel as any);

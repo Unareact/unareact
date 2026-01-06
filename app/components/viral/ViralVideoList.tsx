@@ -10,6 +10,7 @@ import { useEditorStore } from '@/app/stores/editor-store';
 import { ViralDiagnosis as ViralDiagnosisComponent } from '../diagnosis/ViralDiagnosis';
 import type { ViralDiagnosis } from '@/app/types';
 import { RegionSelector } from './RegionSelector';
+import { PortalRegionSelector } from '../portal/PortalRegionSelector';
 import { parseVideoUrl } from '@/app/lib/video-url-parser';
 import { ViralVideoWorkflow } from './ViralVideoWorkflow';
 import { usePathname } from 'next/navigation';
@@ -29,6 +30,7 @@ interface LastSearch {
   productCategory: string; // Mantido para compatibilidade
   unifiedCategory?: string; // Novo campo unificado
   excludeAI?: boolean; // Excluir vídeos gerados por IA
+  shortsOnly?: boolean; // Apenas YouTube Shorts
   sortBy: string;
   videos: ViralVideo[];
   stats: { total: number; filtered: boolean; regions: string };
@@ -36,7 +38,7 @@ interface LastSearch {
 
 export function ViralVideoList() {
   const pathname = usePathname();
-  const isPortalPage = pathname === '/portal';
+  const isPortalPage = pathname === '/portal' || pathname?.includes('/portal/viral');
   
   // Carregar última pesquisa do localStorage
   const loadLastSearch = (): Partial<LastSearch> | null => {
@@ -64,32 +66,33 @@ export function ViralVideoList() {
     initialVideos.length > 0 ? filterAIGenerated(initialVideos, initialExcludeAI) : []
   );
   const [loading, setLoading] = useState(false); // Nunca carregar automaticamente - só quando usuário clicar em "Buscar"
-  const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>(lastSearch?.platform || 'all');
-  const [region, setRegion] = useState<string | string[]>(lastSearch?.region || 'ALL_AMERICAS');
-  const [minLikes, setMinLikes] = useState(lastSearch?.minLikes || 0);
-  const [maxDaysAgo, setMaxDaysAgo] = useState(lastSearch?.maxDaysAgo || 0);
-  const [minLikesPerDay, setMinLikesPerDay] = useState(lastSearch?.minLikesPerDay || 0);
-  // Migração: converter category e productCategory antigos para unifiedCategory
-  const getInitialUnifiedCategory = (): string => {
+  // Para Portal: fixar plataforma como YouTube e shortsOnly como true
+  const initialPlatform = isPortalPage ? 'youtube' : (lastSearch?.platform || 'all');
+  const initialShortsOnly = isPortalPage ? true : false;
+  const initialUnifiedCategory = isPortalPage ? 'prod:portal-magra' : (() => {
     if (lastSearch?.unifiedCategory) {
       return lastSearch.unifiedCategory;
     }
-    // Migração: se tinha productCategory diferente de 'all', usar ele
     if (lastSearch?.productCategory && lastSearch.productCategory !== 'all') {
       return `prod:${lastSearch.productCategory}`;
     }
-    // Migração: se tinha category diferente de '0', usar ele
     if (lastSearch?.category && lastSearch.category !== '0') {
       return `yt:${lastSearch.category}`;
     }
     return 'all';
-  };
+  })();
+
+  const [platform, setPlatform] = useState<'youtube' | 'tiktok' | 'all'>(initialPlatform);
+  const [region, setRegion] = useState<string | string[]>(lastSearch?.region || (isPortalPage ? 'US' : 'ALL_AMERICAS'));
+  const [minLikes, setMinLikes] = useState(lastSearch?.minLikes || 0);
+  const [maxDaysAgo, setMaxDaysAgo] = useState(lastSearch?.maxDaysAgo || 0);
+  const [minLikesPerDay, setMinLikesPerDay] = useState(lastSearch?.minLikesPerDay || 0);
   
-  const [unifiedCategory, setUnifiedCategory] = useState(getInitialUnifiedCategory());
+  const [unifiedCategory, setUnifiedCategory] = useState(initialUnifiedCategory);
   // Mantidos para compatibilidade com API (serão removidos depois)
   const [category, setCategory] = useState(lastSearch?.category || '0');
-  const [productCategory, setProductCategory] = useState(lastSearch?.productCategory || 'all');
-  const [shortsOnly, setShortsOnly] = useState(false);
+  const [productCategory, setProductCategory] = useState(lastSearch?.productCategory || (isPortalPage ? 'portal-magra' : 'all'));
+  const [shortsOnly, setShortsOnly] = useState(initialShortsOnly);
   const [excludeAI, setExcludeAI] = useState(lastSearch?.excludeAI ?? false);
   const [sortBy, setSortBy] = useState(lastSearch?.sortBy || 'views');
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +106,8 @@ export function ViralVideoList() {
   const [originalVideos, setOriginalVideos] = useState<ViralVideo[]>([]);
   const [showOnlyOriginals, setShowOnlyOriginals] = useState(false);
   const [originalVideoId, setOriginalVideoId] = useState<string | null>(null);
+  // Estado para controlar se já fez busca (para Portal buscar automaticamente quando mudar filtros)
+  const [hasSearched, setHasSearched] = useState(isPortalPage && initialVideos.length > 0);
   const { addClip, setActivePanel, setPendingDownloadUrl, setScript, setCurrentViralDiagnosis } = useEditorStore();
 
   // Salvar pesquisa no localStorage
@@ -120,29 +125,40 @@ export function ViralVideoList() {
     setError(null);
     try {
       // Construir URL com parâmetros baseados na plataforma
+      // Para Portal, garantir pelo menos 20 resultados
+      const requestedMaxResults = isPortalPage ? '20' : '100';
+      
       const params = new URLSearchParams({
         platform: platform,
-        maxResults: '100',
-        minLikes: minLikes.toString(),
-        maxDaysAgo: maxDaysAgo.toString(),
-        minLikesPerDay: minLikesPerDay.toString(),
-        sortBy: sortBy,
-        unifiedCategory: unifiedCategory, // Novo parâmetro unificado
+        maxResults: requestedMaxResults,
+        minLikes: '0', // Sempre 0 (filtro removido)
+        maxDaysAgo: Math.max(0, maxDaysAgo).toString(), // Garantir que não seja negativo
+        minLikesPerDay: Math.max(0, minLikesPerDay).toString(), // Garantir que não seja negativo
+        sortBy: sortBy || 'viralScore', // Garantir valor padrão
+        unifiedCategory: unifiedCategory || 'all', // Garantir valor padrão
         excludeAI: excludeAI.toString(), // Excluir vídeos gerados por IA
       });
       
       // Região e shorts apenas para YouTube
       if (platform === 'youtube' || platform === 'all') {
-        // Se region é array, enviar como string separada por vírgula
-        const regionParam = Array.isArray(region) ? region.join(',') : region;
-        params.append('region', regionParam);
+        // Normalizar região: se for string, usar diretamente; se for array, juntar
+        let regionParam: string;
+        if (Array.isArray(region)) {
+          regionParam = region.length === 0 ? 'US' : region.join(',');
+        } else {
+          regionParam = region || 'US';
+        }
+        // Garantir que o valor seja válido
+        if (regionParam && regionParam !== '') {
+          params.append('region', regionParam);
+        }
         if (shortsOnly) {
           params.append('shortsOnly', 'true');
         }
       }
       
       // Manter compatibilidade: também enviar category e productCategory separados
-      const parsed = parseCategoryId(unifiedCategory);
+      const parsed = parseCategoryId(unifiedCategory || 'all');
       if (parsed.type === 'youtube' && parsed.id !== 'all') {
         params.append('category', parsed.id);
       }
@@ -151,7 +167,17 @@ export function ViralVideoList() {
       }
       
       const url = `/api/viral?${params.toString()}`;
-      console.log('🔍 Buscando vídeos:', { platform, url, params: Object.fromEntries(params) });
+      console.log('🔍 Buscando vídeos:', { 
+        platform, 
+        region: params.get('region'),
+        unifiedCategory,
+        shortsOnly,
+        sortBy,
+        minLikes,
+        maxDaysAgo,
+        minLikesPerDay,
+        url 
+      });
       const response = await fetch(url);
       
       // Melhor tratamento de erros HTTP
@@ -243,6 +269,11 @@ export function ViralVideoList() {
       };
       setStats(statsData);
       
+      // Marcar que já fez busca (para Portal buscar automaticamente quando mudar filtros)
+      if (isPortalPage) {
+        setHasSearched(true);
+      }
+      
       // Salvar última pesquisa (reutilizar parsed já declarado acima)
       saveLastSearch({
         platform,
@@ -254,6 +285,7 @@ export function ViralVideoList() {
         productCategory: parsed.type === 'product' ? parsed.id : 'all',
         unifiedCategory: unifiedCategory,
         excludeAI: excludeAI,
+        shortsOnly: shortsOnly,
         sortBy,
         videos: videosData,
         stats: statsData,
@@ -292,8 +324,73 @@ export function ViralVideoList() {
     }
   }, [platform, region, minLikes, maxDaysAgo, minLikesPerDay, unifiedCategory, excludeAI, sortBy]);
 
+  // Aplicar filtros automáticos para Portal
+  useEffect(() => {
+    if (isPortalPage) {
+      // Forçar plataforma YouTube, shortsOnly true, e categoria portal-magra
+      setPlatform('youtube');
+      setShortsOnly(true);
+      setUnifiedCategory('prod:portal-magra');
+      setProductCategory('portal-magra');
+      
+      // Aplicar filtros salvos do localStorage se existirem
+      const saved = loadLastSearch();
+      if (saved?.region) {
+        setRegion(saved.region);
+      }
+      if (saved?.sortBy) {
+        setSortBy(saved.sortBy);
+      }
+    }
+  }, [isPortalPage]);
+
+  // No Portal: buscar automaticamente quando carregar a página OU quando qualquer filtro mudar
+  useEffect(() => {
+    if (isPortalPage) {
+      // Se ainda não fez busca OU se mudou algum filtro, buscar
+      // Debounce para evitar múltiplas buscas rápidas
+      const timeoutId = setTimeout(() => {
+        if (!hasSearched) {
+          console.log('🔄 Portal: Primeira busca automática...', {
+            region,
+            sortBy,
+            minLikes,
+            maxDaysAgo,
+            minLikesPerDay,
+            unifiedCategory,
+            shortsOnly
+          });
+        } else {
+          console.log('🔄 Portal: Filtros mudaram, buscando novamente...', {
+            region,
+            sortBy,
+            minLikes,
+            maxDaysAgo,
+            minLikesPerDay,
+            unifiedCategory,
+            shortsOnly
+          });
+        }
+        fetchViralVideos();
+      }, 500); // Aguardar 500ms após a última mudança
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isPortalPage, region, sortBy, minLikes, maxDaysAgo, minLikesPerDay, unifiedCategory, shortsOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Marcar que já fez busca quando fetchViralVideos completar (mesmo se não retornar vídeos)
+  useEffect(() => {
+    if (isPortalPage && !hasSearched && !loading) {
+      // Se não está mais carregando e ainda não marcou como buscado, marcar agora
+      // Isso garante que buscas subsequentes sejam automáticas
+      setHasSearched(true);
+    }
+  }, [isPortalPage, hasSearched, loading]);
+
   // Ajustar categoria quando plataforma mudar (garantir que categoria seja válida para a plataforma)
   useEffect(() => {
+    if (isPortalPage) return; // Não ajustar no Portal
+    
     const availableCategories = getCategoriesForPlatform(platform);
     const currentCategoryExists = availableCategories.some(cat => cat.id === unifiedCategory);
     
@@ -301,7 +398,7 @@ export function ViralVideoList() {
       // Se a categoria atual não está disponível para a plataforma, resetar para 'all'
       setUnifiedCategory('all');
     }
-  }, [platform, unifiedCategory]);
+  }, [platform, unifiedCategory, isPortalPage]);
 
   // Aplicar filtro de IA localmente quando excludeAI mudar (sem fazer nova busca)
   useEffect(() => {
@@ -837,145 +934,151 @@ export function ViralVideoList() {
           </h3>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {/* Plataforma */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Smartphone className="w-4 h-4" />
-              Plataforma
-            </label>
-            <select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value as 'youtube' | 'tiktok' | 'all')}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-            >
-              <option value="all">📱 Todas</option>
-              <option value="youtube">▶️ YouTube</option>
-              <option value="tiktok">🎵 TikTok</option>
-            </select>
-          </div>
-          
-          {/* Região - Apenas para YouTube */}
-          {(platform === 'youtube' || platform === 'all') && (
-            <RegionSelector
-              value={region}
-              onChange={setRegion}
-            />
+        <div className={cn("grid gap-3 sm:gap-4", isPortalPage ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4")}>
+          {/* Portal: Interface Simplificada */}
+          {isPortalPage ? (
+            <>
+              {/* Região - 3 botões para Portal */}
+              <PortalRegionSelector
+                value={region}
+                onChange={setRegion}
+              />
+              
+              {/* Ordenação */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                  <ArrowUpDown className="w-4 h-4" />
+                  Ordenar por
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                >
+                  <option value="views">👁️ Mais Visualizações</option>
+                  <option value="likes">❤️ Mais Curtidas</option>
+                  <option value="comments">💬 Mais Comentários</option>
+                  <option value="growth">📈 Maior Crescimento</option>
+                  <option value="viralScore">🔥 Viral Score</option>
+                  <option value="recent">🕐 Mais Recente</option>
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Plataforma */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                  <Smartphone className="w-4 h-4" />
+                  Plataforma
+                </label>
+                <select
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value as 'youtube' | 'tiktok' | 'all')}
+                  className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                >
+                  <option value="all">📱 Todas</option>
+                  <option value="youtube">▶️ YouTube</option>
+                  <option value="tiktok">🎵 TikTok</option>
+                </select>
+              </div>
+              
+              {/* Região - Apenas para YouTube */}
+              {(platform === 'youtube' || platform === 'all') && (
+                <RegionSelector
+                  value={region}
+                  onChange={setRegion}
+                />
+              )}
+              
+              {/* Categoria Unificada - Combina categorias do YouTube e produtos */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                  <Filter className="w-4 h-4" />
+                  Categoria/Nicho
+                </label>
+                <select
+                  value={unifiedCategory}
+                  onChange={(e) => setUnifiedCategory(e.target.value)}
+                  title={UNIFIED_CATEGORIES.find(cat => cat.id === unifiedCategory)?.description || ''}
+                  className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                >
+                  {getCategoriesForPlatform(platform).map((cat) => (
+                    <option key={cat.id} value={cat.id} title={cat.description}>
+                      {cat.emoji} {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* YouTube Shorts - Apenas para YouTube */}
+              {(platform === 'youtube' || platform === 'all') && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <Smartphone className="w-4 h-4" />
+                    Tipo de Vídeo
+                  </label>
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={shortsOnly}
+                      onChange={(e) => setShortsOnly(e.target.checked)}
+                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      📱 Apenas Shorts (≤60s)
+                    </span>
+                  </label>
+                </div>
+              )}
+            </>
           )}
           
-          {/* Categoria Unificada - Combina categorias do YouTube e produtos */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Filter className="w-4 h-4" />
-              Categoria/Nicho
-            </label>
-            <select
-              value={unifiedCategory}
-              onChange={(e) => setUnifiedCategory(e.target.value)}
-              title={UNIFIED_CATEGORIES.find(cat => cat.id === unifiedCategory)?.description || ''}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-            >
-              {getCategoriesForPlatform(platform).map((cat) => (
-                <option key={cat.id} value={cat.id} title={cat.description}>
-                  {cat.emoji} {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {/* YouTube Shorts - Apenas para YouTube */}
-          {(platform === 'youtube' || platform === 'all') && (
+          {/* Excluir Vídeos de IA - Apenas para não-Portal */}
+          {!isPortalPage && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                <Smartphone className="w-4 h-4" />
-                Tipo de Vídeo
+                <Brain className="w-4 h-4" />
+                Filtro de Conteúdo
               </label>
               <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 <input
                   type="checkbox"
-                  checked={shortsOnly}
-                  onChange={(e) => setShortsOnly(e.target.checked)}
+                  checked={excludeAI}
+                  onChange={(e) => setExcludeAI(e.target.checked)}
                   className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">
-                  📱 Apenas Shorts (≤60s)
+                  🤖 Excluir vídeos gerados por IA
                 </span>
               </label>
             </div>
           )}
           
-          {/* Excluir Vídeos de IA - Para todas as plataformas */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Brain className="w-4 h-4" />
-              Filtro de Conteúdo
-            </label>
-            <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-              <input
-                type="checkbox"
-                checked={excludeAI}
-                onChange={(e) => setExcludeAI(e.target.checked)}
-                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-              />
-              <span className="text-sm text-gray-900 dark:text-gray-100">
-                🤖 Excluir vídeos gerados por IA
-              </span>
-            </label>
-          </div>
-          
-          {/* Ordenação - Como os vídeos vão aparecer */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <ArrowUpDown className="w-4 h-4" />
-              Ordenar por
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-            >
-              <option value="views">👁️ Mais Visualizações</option>
-              <option value="likes">❤️ Mais Curtidas</option>
-              <option value="comments">💬 Mais Comentários</option>
-              <option value="growth">📈 Maior Crescimento</option>
-              <option value="viralScore">🔥 Viral Score</option>
-              <option value="recent">🕐 Mais Recente</option>
-            </select>
-          </div>
+          {/* Ordenação - Apenas para não-Portal (Portal já tem no bloco acima) */}
+          {!isPortalPage && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <ArrowUpDown className="w-4 h-4" />
+                Ordenar por
+              </label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+              >
+                <option value="views">👁️ Mais Visualizações</option>
+                <option value="likes">❤️ Mais Curtidas</option>
+                <option value="comments">💬 Mais Comentários</option>
+                <option value="growth">📈 Maior Crescimento</option>
+                <option value="viralScore">🔥 Viral Score</option>
+                <option value="recent">🕐 Mais Recente</option>
+              </select>
+            </div>
+          )}
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-2 border-t border-gray-200 dark:border-gray-700">
-          {/* Mín. Curtidas */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Heart className="w-4 h-4 text-red-500" />
-              Mín. Curtidas
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={minLikes}
-                onChange={(e) => {
-                  e.preventDefault();
-                  setMinLikes(parseInt(e.target.value) || 0);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    fetchViralVideos();
-                  }
-                }}
-                min={0}
-                step={100000}
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-                placeholder="100.000"
-              />
-              <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                {minLikes >= 1000000 ? `${(minLikes / 1000000).toFixed(1)}M+` : minLikes >= 1000 ? `${(minLikes / 1000).toFixed(0)}K+` : `${minLikes}+`}
-              </span>
-            </div>
-          </div>
-          
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 pt-2 border-t border-gray-200 dark:border-gray-700">
           {/* Data de Publicação */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">

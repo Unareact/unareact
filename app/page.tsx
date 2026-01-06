@@ -60,15 +60,15 @@ export default function Home() {
       id: 'portal',
       name: 'Portal Magra',
       icon: Dumbbell,
-      description: 'Vídeos de fitness e bem-estar',
+      description: 'Vídeos de alimentação, nutrição e receitas para mulheres brasileiras nos EUA',
       color: 'from-orange-600 to-red-600',
       hoverColor: 'from-orange-700 to-red-700',
       bgColor: 'from-orange-50 to-red-50',
       features: [
-        'Templates de fitness',
-        'Roteiros otimizados',
-        'Biblioteca de mídia',
-        'Foco em resultados'
+        'Buscar vídeos de alimentação e receitas',
+        'Foco em mulheres brasileiras nos EUA',
+        'Roteiros de nutrição otimizados',
+        'Foco em conversão'
       ],
       route: '/portal',
       badge: null
